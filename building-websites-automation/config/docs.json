@@ -1,0 +1,8 @@
+[
+  {
+    "name": "get-started-building-a-website",
+    "doc": "https://www.contentstack.com/docs/headless-cms/get-started-with-building-a-website",
+    "repo": "https://github.com/contentstack/contentstack-getting-started-react-app.git",
+    "port": 3000
+  }
+]

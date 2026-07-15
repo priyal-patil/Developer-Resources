@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+reports/*.html
+reports/*.json
+.playwright-mcp/
+test-results/
+playwright-report/
+# cloned kickstart repos used as fixtures at runtime
+workdir/

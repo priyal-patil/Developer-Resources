@@ -1,0 +1,69 @@
+[
+  {
+    "name": "nuxt",
+    "doc": "https://www.contentstack.com/docs/headless-cms/nuxt",
+    "variant": "standard",
+    "stepRange": [0, 7]
+  },
+  {
+    "name": "nuxt-ssr",
+    "doc": "https://www.contentstack.com/docs/headless-cms/nuxt",
+    "variant": "ssr",
+    "stepRange": [8, 14],
+    "reuseStackFrom": "nuxt"
+  },
+  {
+    "name": "next",
+    "doc": "https://www.contentstack.com/docs/headless-cms/next",
+    "variant": "standard",
+    "stepRange": [0, 7]
+  },
+  {
+    "name": "next-ssr",
+    "doc": "https://www.contentstack.com/docs/headless-cms/next",
+    "variant": "ssr",
+    "stepRange": [8, 14],
+    "reuseStackFrom": "next"
+  },
+  {
+    "name": "next-middleware",
+    "doc": "https://www.contentstack.com/docs/headless-cms/next",
+    "variant": "middleware",
+    "stepRange": [15, 21],
+    "reuseStackFrom": "next"
+  },
+  {
+    "name": "next-graphql",
+    "doc": "https://www.contentstack.com/docs/headless-cms/next",
+    "variant": "graphql",
+    "stepRange": [22, 28],
+    "reuseStackFrom": "next"
+  },
+  {
+    "name": "next-ssg",
+    "doc": "https://www.contentstack.com/docs/headless-cms/next",
+    "variant": "ssg",
+    "stepRange": [29, 35],
+    "reuseStackFrom": "next"
+  },
+  {
+    "name": "react",
+    "doc": "https://www.contentstack.com/docs/headless-cms/react"
+  },
+  {
+    "name": "angular",
+    "doc": "https://www.contentstack.com/docs/headless-cms/angular"
+  },
+  {
+    "name": "sveltekit",
+    "doc": "https://www.contentstack.com/docs/headless-cms/sveltekit"
+  },
+  {
+    "name": "astro",
+    "doc": "https://www.contentstack.com/docs/headless-cms/astro"
+  },
+  {
+    "name": "veda",
+    "doc": "https://www.contentstack.com/docs/headless-cms/veda"
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "folders": [
+    {
+      "name": "📘 Kickstart Automation",
+      "path": "kickstart-automation"
+    },
+    {
+      "name": "🌐 Building Websites Automation",
+      "path": "building-websites-automation"
+    },
+    {
+      "name": "📙 CLI Automation",
+      "path": "cli-automation"
+    }
+    // Add more standalone subprojects here as you build them, e.g.:
+    // { "name": "📗 SDK Automation", "path": "sdk-automation" },
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/reports/*.html": false
+    },
+    "typescript.tsdk": "kickstart-automation/node_modules/typescript/lib"
+  }
+}

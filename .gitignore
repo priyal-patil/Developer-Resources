@@ -1,0 +1,14 @@
+# Belt-and-suspenders root ignores — each subproject also has its own .gitignore
+**/node_modules/
+**/workdir/
+**/.env
+**/.playwright-mcp/
+**/test-results/
+**/playwright-report/
+**/dist/
+.DS_Store
+**/.DS_Store
+
+# Per-project run artifacts (JSON/HTML reports) — screenshots and .docx reports are kept
+**/reports/*.json
+**/reports/*.html

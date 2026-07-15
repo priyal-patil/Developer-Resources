@@ -1,0 +1,30 @@
+{
+  "docs": [
+    {
+      "name": "export-content",
+      "url": "https://www.contentstack.com/docs/headless-cms/export-content-using-the-cli",
+      "commands": ["cm:stacks:export", "cm:export"]
+    },
+    {
+      "name": "install-the-cli",
+      "url": "https://www.contentstack.com/docs/headless-cms/install-the-cli",
+      "commands": []
+    },
+    {
+      "name": "configure-regions",
+      "url": "https://www.contentstack.com/docs/headless-cms/configure-regions-in-the-cli",
+      "commands": ["config:get:region", "config:set:region"]
+    },
+    {
+      "name": "cli-authentication",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-authentication",
+      "commands": ["auth:login", "auth:logout", "auth:whoami", "auth:tokens:add", "auth:tokens:remove", "auth:tokens"]
+    },
+    {
+      "name": "import-content",
+      "url": "https://www.contentstack.com/docs/headless-cms/import-content-using-the-cli",
+      "commands": ["cm:stacks:import", "cm:import"],
+      "needsSourceExport": true
+    }
+  ]
+}

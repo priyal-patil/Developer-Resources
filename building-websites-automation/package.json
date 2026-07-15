@@ -1,0 +1,21 @@
+{
+  "name": "building-websites-automation",
+  "version": "0.1.0",
+  "description": "Executes the Building Websites docs verbatim (terminal + Contentstack dashboard), verifies the promised result, and reports gaps",
+  "type": "module",
+  "scripts": {
+    "parse": "tsx src/parse/parseDoc.ts",
+    "run-one": "tsx src/index.ts",
+    "run-all": "tsx src/index.ts --all",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.4.5"
+  }
+}

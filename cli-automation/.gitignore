@@ -1,0 +1,5 @@
+node_modules/
+workdir/
+.env
+reports/*.html
+reports/*.json
