@@ -50,7 +50,7 @@ jobs:
           CONTENTSTACK_EMAIL: ${{ secrets.CONTENTSTACK_EMAIL }}
           CONTENTSTACK_PASSWORD: ${{ secrets.CONTENTSTACK_PASSWORD }}
           CONTENTSTACK_REGION: ${{ secrets.CONTENTSTACK_REGION }}
-          CONTENTSTACK_ORG_NAME: ${{ secrets.CONTENTSTACK_ORG_NAME }}
+          CONTENTSTACK_ORG_NAME: ${{ secrets.CONTENTSTACK_ORG_NAME || 'Contentstack QA' }}
         run: |
           set -e
           KICKSTARTS="${{ github.event.inputs.kickstarts || 'all' }}"
