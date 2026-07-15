@@ -68,3 +68,40 @@ jobs:
           path: |
             kickstart-automation/reports/**
           retention-days: 30
+
+      - name: Post summary to Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -e
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not set — skipping Slack notification."
+            exit 0
+          fi
+
+          if [ ! -f reports/latest.json ]; then
+            node -e '
+              const payload = { text: `:warning: *Kickstart Docs Automation* — no report was generated (job may have crashed).\n<${process.env.RUN_URL}|View run>` };
+              require("fs").writeFileSync("/tmp/slack-payload.json", JSON.stringify(payload));
+            '
+          else
+            node -e '
+              const fs = require("fs");
+              const data = JSON.parse(fs.readFileSync("reports/latest.json", "utf8"));
+              const results = data.results || [];
+              const passed = results.filter((r) => r.ok).length;
+              const failed = results.length - passed;
+              const lines = results.map((r) => `${r.ok ? "✅" : "🔴"} ${r.kickstart}`).join("\n");
+              const text = [
+                `*Kickstart Docs Automation* — ${results.length} checked, ${passed} passed, ${failed} with issues`,
+                lines,
+                `<${process.env.RUN_URL}|View full report, screenshots & bug-report docs>`,
+              ].join("\n");
+              fs.writeFileSync("/tmp/slack-payload.json", JSON.stringify({ text }));
+            '
+          fi
+
+          curl -sf -X POST -H "Content-Type: application/json" \
+            --data @/tmp/slack-payload.json "$SLACK_WEBHOOK_URL"
