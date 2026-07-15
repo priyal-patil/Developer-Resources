@@ -1,0 +1,70 @@
+name: Kickstart Docs Automation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "kickstart-automation/**"
+      - ".github/workflows/kickstart-docs.yml"
+  schedule:
+    # Every Monday 06:00 UTC — catches drift even when nobody touches the doc/code.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      kickstarts:
+        description: >
+          Which kickstart(s) to run: "all", or a space-separated list of names
+          from kickstart-automation/config/kickstarts.json (e.g. "nuxt react").
+        required: false
+        default: "all"
+
+jobs:
+  run-kickstarts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kickstart-automation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: kickstart-automation/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Contentstack CLI
+        run: npm install -g @contentstack/cli
+
+      - name: Run kickstart automation
+        env:
+          CONTENTSTACK_EMAIL: ${{ secrets.CONTENTSTACK_EMAIL }}
+          CONTENTSTACK_PASSWORD: ${{ secrets.CONTENTSTACK_PASSWORD }}
+          CONTENTSTACK_REGION: ${{ secrets.CONTENTSTACK_REGION }}
+          CONTENTSTACK_ORG_NAME: ${{ secrets.CONTENTSTACK_ORG_NAME }}
+        run: |
+          set -e
+          KICKSTARTS="${{ github.event.inputs.kickstarts || 'all' }}"
+          if [ "$KICKSTARTS" = "all" ]; then
+            npm run run-all
+          else
+            npx tsx src/index.ts $KICKSTARTS
+          fi
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kickstart-reports-${{ github.run_number }}
+          path: |
+            kickstart-automation/reports/**
+          retention-days: 30

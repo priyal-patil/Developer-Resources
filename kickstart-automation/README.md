@@ -5,6 +5,23 @@ app works, and flags any step that is **broken**, **missing**, or **ambiguous**.
 
 Standalone subproject — own deps, `.env`, and schedule.
 
+## CI (GitHub Actions)
+
+`.github/workflows/kickstart-docs.yml` (repo root) runs this project on every push
+to `kickstart-automation/**`, every Monday, and on manual dispatch (pick specific
+kickstarts or `all`). Reports (JSON/HTML/screenshots/.docx) are uploaded as a
+workflow artifact — nothing is committed back to the repo.
+
+Requires these **repository secrets** (Settings → Secrets and variables → Actions),
+never committed to the repo:
+
+| Secret | Value |
+|---|---|
+| `CONTENTSTACK_EMAIL` | QA-org account email |
+| `CONTENTSTACK_PASSWORD` | QA-org account password |
+| `CONTENTSTACK_REGION` | e.g. `AWS-NA` |
+| `CONTENTSTACK_ORG_NAME` | e.g. `Contentstack QA` |
+
 ## Pipeline
 
 ```
