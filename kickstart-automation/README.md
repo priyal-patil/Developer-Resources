@@ -21,6 +21,7 @@ never committed to the repo:
 | `CONTENTSTACK_PASSWORD` | QA-org account password |
 | `CONTENTSTACK_REGION` | e.g. `AWS-NA` |
 | `CONTENTSTACK_ORG_NAME` | e.g. `Contentstack QA` |
+| `SLACK_WEBHOOK_URL` | *(optional)* Slack Incoming Webhook URL — if set, posts a pass/fail summary per kickstart + a link to the run's full report/screenshots/.docx after every run. Skipped silently if unset. |
 
 ## Pipeline
 
