@@ -21,7 +21,15 @@ never committed to the repo:
 | `CONTENTSTACK_PASSWORD` | QA-org account password |
 | `CONTENTSTACK_REGION` | e.g. `AWS-NA` |
 | `CONTENTSTACK_ORG_NAME` | e.g. `Contentstack QA` |
-| `SLACK_WEBHOOK_URL` | *(optional)* Slack Incoming Webhook URL — if set, posts a pass/fail summary per kickstart + a link to the run's full report/screenshots/.docx after every run. Skipped silently if unset. |
+| `SLACK_CHANNEL_EMAIL` | *(optional)* the Slack channel's email address (Slack → channel → Integrations → "Send emails to this channel") |
+| `ALERT_FROM_EMAIL` | *(optional)* the sending mailbox, e.g. a Google Workspace address |
+| `ALERT_EMAIL_PASSWORD` | *(optional)* an **app password** for that mailbox (not the account password) |
+
+If all three are set, every run emails a pass/fail summary + a link to the full
+report/screenshots/.docx to that Slack channel (Slack posts emails sent to a
+channel's address as a message). Skipped silently if any of the three is unset.
+Uses Gmail/Google Workspace SMTP (`smtp.gmail.com:465`) — swap the `server_address`
+in the workflow if your mailbox is on a different provider.
 
 ## Pipeline
 

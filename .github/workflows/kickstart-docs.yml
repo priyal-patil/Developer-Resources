@@ -69,22 +69,28 @@ jobs:
             kickstart-automation/reports/**
           retention-days: 30
 
-      - name: Post summary to Slack
+      - name: Prepare Slack summary (sent via channel email)
         if: always()
+        id: slack_prep
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HAS_CHANNEL: ${{ secrets.SLACK_CHANNEL_EMAIL != '' }}
+          HAS_FROM: ${{ secrets.ALERT_FROM_EMAIL != '' }}
+          HAS_PASS: ${{ secrets.ALERT_EMAIL_PASSWORD != '' }}
         run: |
           set -e
-          if [ -z "$SLACK_WEBHOOK_URL" ]; then
-            echo "SLACK_WEBHOOK_URL not set — skipping Slack notification."
+          if [ "$HAS_CHANNEL" != "true" ] || [ "$HAS_FROM" != "true" ] || [ "$HAS_PASS" != "true" ]; then
+            echo "Slack alert secrets not fully set — skipping notification."
+            echo "send=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "send=true" >> "$GITHUB_OUTPUT"
 
           if [ ! -f reports/latest.json ]; then
+            SUBJECT="⚠️ Kickstart Docs Automation — no report generated"
             node -e '
-              const payload = { text: `:warning: *Kickstart Docs Automation* — no report was generated (job may have crashed).\n<${process.env.RUN_URL}|View run>` };
-              require("fs").writeFileSync("/tmp/slack-payload.json", JSON.stringify(payload));
+              const fs = require("fs");
+              fs.writeFileSync("reports/slack-summary.txt", `No report was generated (the job may have crashed).\n\nView run: ${process.env.RUN_URL}`);
             '
           else
             node -e '
@@ -93,15 +99,34 @@ jobs:
               const results = data.results || [];
               const passed = results.filter((r) => r.ok).length;
               const failed = results.length - passed;
-              const lines = results.map((r) => `${r.ok ? "✅" : "🔴"} ${r.kickstart}`).join("\n");
+              const lines = results.map((r) => `${r.ok ? "PASS" : "FAIL"}  ${r.kickstart}`).join("\n");
               const text = [
-                `*Kickstart Docs Automation* — ${results.length} checked, ${passed} passed, ${failed} with issues`,
+                `${results.length} checked, ${passed} passed, ${failed} with issues`,
+                "",
                 lines,
-                `<${process.env.RUN_URL}|View full report, screenshots & bug-report docs>`,
+                "",
+                `View full report, screenshots & bug-report docs: ${process.env.RUN_URL}`,
               ].join("\n");
-              fs.writeFileSync("/tmp/slack-payload.json", JSON.stringify({ text }));
+              fs.writeFileSync("reports/slack-summary.txt", text);
+              const subject = `Kickstart Docs Automation — ${passed}/${results.length} passed`;
+              fs.writeFileSync("reports/slack-subject.txt", subject);
             '
+            SUBJECT="$(cat reports/slack-subject.txt)"
           fi
+          echo "subject=$SUBJECT" >> "$GITHUB_OUTPUT"
 
-          curl -sf -X POST -H "Content-Type: application/json" \
-            --data @/tmp/slack-payload.json "$SLACK_WEBHOOK_URL"
+      # Slack can receive plain email at a channel's email address and posts it
+      # as a message — no Slack app/webhook needed. Uses Gmail/Workspace SMTP.
+      - name: Send Slack alert via channel email
+        if: always() && steps.slack_prep.outputs.send == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.ALERT_FROM_EMAIL }}
+          password: ${{ secrets.ALERT_EMAIL_PASSWORD }}
+          from: ${{ secrets.ALERT_FROM_EMAIL }}
+          to: ${{ secrets.SLACK_CHANNEL_EMAIL }}
+          subject: ${{ steps.slack_prep.outputs.subject }}
+          body: file://kickstart-automation/reports/slack-summary.txt
