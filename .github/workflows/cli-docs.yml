@@ -1,0 +1,104 @@
+name: CLI Docs Automation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cli-automation/**"
+      - ".github/workflows/cli-docs.yml"
+  schedule:
+    # Weekly, Monday 06:00 IST. GitHub Actions cron is UTC-only; IST is
+    # UTC+5:30 (no DST), so 06:00 IST Monday = 00:30 UTC Monday. Offset an
+    # hour from kickstart-docs.yml's own daily 05:00 IST run so the two
+    # automations don't create real stacks/apps in the shared QA org at
+    # the same time. Weekly (not daily) because this suite creates FAR
+    # more real, heavier resources per run than kickstart does (real
+    # stacks, Developer Hub apps, cloned starter-app repos) — adjust the
+    # cadence here if that trade-off should change.
+    - cron: "30 0 * * 1"
+  workflow_dispatch:
+    inputs:
+      docs:
+        description: >
+          Which doc(s) to run: "all" (every production doc in
+          cli-automation/config/docs.json, excluding *-staging entries),
+          or a space-separated list of doc names (e.g. "export-content
+          install-the-cli").
+        required: false
+        default: "all"
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.set-matrix.outputs.docs }}
+    defaults:
+      run:
+        working-directory: cli-automation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build doc matrix
+        id: set-matrix
+        run: |
+          set -e
+          INPUT="${{ github.event.inputs.docs || 'all' }}"
+          if [ "$INPUT" = "all" ]; then
+            DOCS=$(node -e "console.log(JSON.stringify(require('./config/docs.json').docs.filter(d => !d.name.includes('staging')).map(d => d.name)))")
+          else
+            DOCS=$(node -e "console.log(JSON.stringify(process.argv[1].split(' ').filter(Boolean)))" "$INPUT")
+          fi
+          echo "docs=$DOCS" >> "$GITHUB_OUTPUT"
+
+  run-docs:
+    needs: discover
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      # Capped rather than fully unbounded: several docs create real
+      # stacks/Developer Hub apps in the SAME shared QA org, which has
+      # already hit real quota/rate-limit issues from concurrent
+      # activity — this caps how many run genuinely simultaneously
+      # while still giving most of the parallel-speed benefit.
+      max-parallel: 3
+      matrix:
+        doc: ${{ fromJson(needs.discover.outputs.docs) }}
+    defaults:
+      run:
+        working-directory: cli-automation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: cli-automation/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Contentstack CLI
+        run: npm install -g @contentstack/cli
+
+      - name: Run ${{ matrix.doc }}
+        env:
+          CONTENTSTACK_EMAIL: ${{ secrets.CONTENTSTACK_EMAIL }}
+          CONTENTSTACK_PASSWORD: ${{ secrets.CONTENTSTACK_PASSWORD }}
+          CONTENTSTACK_REGION: ${{ secrets.CONTENTSTACK_REGION }}
+          CONTENTSTACK_ORG_ID: ${{ secrets.CONTENTSTACK_ORG_ID }}
+        run: npm run run-one -- ${{ matrix.doc }}
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-docs-report-${{ matrix.doc }}-${{ github.run_number }}
+          path: |
+            cli-automation/reports/**
+          retention-days: 30

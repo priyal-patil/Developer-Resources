@@ -96,6 +96,74 @@ export async function deleteStack(apiKey: string): Promise<boolean> {
   return false;
 }
 
+/** Create a taxonomy + one term for real, for docs (export-content-to-csv) that need a genuine --taxonomy-uid to test against. */
+export async function createTaxonomy(apiKey: string, uid: string, name: string): Promise<{ taxonomyUid: string; termUid: string }> {
+  const { status, data } = await api("POST", "/taxonomies", { taxonomy: { uid, name, description: "cli-automation test taxonomy" } }, { api_key: apiKey });
+  if (status !== 201 && status !== 200) throw new Error(`Taxonomy create failed: ${status} ${JSON.stringify(data).slice(0, 200)}`);
+  const termUid = `${uid}_term`;
+  const term = await api("POST", `/taxonomies/${uid}/terms`, { term: { uid: termUid, name: "CLI Automation Term" } }, { api_key: apiKey });
+  if (term.status !== 201 && term.status !== 200) throw new Error(`Term create failed: ${term.status} ${JSON.stringify(term.data).slice(0, 200)}`);
+  return { taxonomyUid: uid, termUid };
+}
+
+/** Find a stack by exact name in the QA org — used to locate and clean up a stack that `cm:stacks:seed --org --stack-name` creates for real (its API key isn't known in advance). */
+export async function findStackByName(name: string): Promise<{ apiKey: string } | undefined> {
+  const { status, data } = await api("GET", `/stacks?query=${encodeURIComponent(JSON.stringify({ name }))}`, undefined, {
+    organization_uid: process.env.CONTENTSTACK_ORG_ID ?? "",
+  });
+  if (status !== 200) return undefined;
+  const match = (data.stacks ?? []).find((s: any) => s.name === name);
+  return match ? { apiKey: match.api_key } : undefined;
+}
+
+/** Content type with a real HTML RTE field + JSON RTE field, for migrate-content-from-html-rte-to-json-rte's doc — that migration needs both to already exist and the HTML RTE to hold real content. */
+export async function createRteContentType(apiKey: string, uid: string): Promise<void> {
+  const { status, data } = await api(
+    "POST",
+    "/content_types",
+    {
+      content_type: {
+        title: "RTE Migration Demo",
+        uid,
+        schema: [
+          { display_name: "Title", uid: "title", data_type: "text", mandatory: true, unique: true, field_metadata: { _default: true } },
+          { display_name: "URL", uid: "url", data_type: "text", mandatory: false, field_metadata: { _default: true } },
+          {
+            display_name: "Html Rte",
+            uid: "rich_text_editor",
+            data_type: "text",
+            field_metadata: { allow_rich_text: true, description: "", multiline: false, rich_text_type: "advanced", options: [], version: 3 },
+          },
+          {
+            display_name: "Json Rte",
+            uid: "json_rte",
+            data_type: "json",
+            field_metadata: { allow_json_rte: true, embed_entry: true, description: "", default_value: {}, rich_text_type: "advanced" },
+            reference_to: ["sys_assets"],
+            format: "",
+            error_messages: { format: "" },
+          },
+        ],
+        options: { is_page: true, singleton: false, title: "title", sub_title: [], url_pattern: "/:title", url_prefix: "/" },
+      },
+    },
+    { api_key: apiKey }
+  );
+  if (status !== 201) throw new Error(`RTE content type ${uid} failed: ${status} ${JSON.stringify(data).slice(0, 300)}`);
+}
+
+/** Real entry with actual HTML in the RTE field — the migration command needs existing content to migrate, not an empty field. */
+export async function createRteEntry(apiKey: string, contentTypeUid: string): Promise<string> {
+  const { status, data } = await api(
+    "POST",
+    `/content_types/${contentTypeUid}/entries`,
+    { entry: { title: "RTE Migration Entry", url: "/rte-migration-entry", rich_text_editor: "<p>Hello <b>world</b>, migrate me.</p>" } },
+    { api_key: apiKey }
+  );
+  if (status !== 201) throw new Error(`RTE entry create failed: ${status} ${JSON.stringify(data).slice(0, 300)}`);
+  return data.entry.uid as string;
+}
+
 export async function createContentType(apiKey: string, uid: string, title: string): Promise<void> {
   const { status, data } = await api(
     "POST",
@@ -117,7 +185,7 @@ export async function createContentType(apiKey: string, uid: string, title: stri
   if (status !== 201) throw new Error(`Content type ${uid} failed: ${status} ${JSON.stringify(data).slice(0, 200)}`);
 }
 
-export async function createEntry(apiKey: string, contentType: string, title: string): Promise<void> {
+export async function createEntry(apiKey: string, contentType: string, title: string): Promise<string> {
   const { status, data } = await api(
     "POST",
     `/content_types/${contentType}/entries?locale=en-us`,
@@ -125,6 +193,28 @@ export async function createEntry(apiKey: string, contentType: string, title: st
     { api_key: apiKey }
   );
   if (status !== 201) throw new Error(`Entry for ${contentType} failed: ${status} ${JSON.stringify(data).slice(0, 200)}`);
+  return data.entry.uid as string;
+}
+
+/** Create a delivery token (with preview enabled) scoped to the given environment. */
+export async function createDeliveryToken(apiKey: string, environment: string): Promise<string> {
+  const { status, data } = await api(
+    "POST",
+    "/stacks/delivery_tokens",
+    {
+      token: {
+        name: "cli-automation-delivery",
+        description: "Created by cli-automation",
+        scope: [
+          { module: "environment", environments: [environment], acl: { read: true } },
+          { module: "branch", branches: ["main"], acl: { read: true } },
+        ],
+      },
+    },
+    { api_key: apiKey }
+  );
+  if (status !== 201) throw new Error(`Delivery token failed: ${status} ${JSON.stringify(data).slice(0, 200)}`);
+  return data.token.token as string;
 }
 
 export async function createEnvironment(apiKey: string, name: string): Promise<void> {

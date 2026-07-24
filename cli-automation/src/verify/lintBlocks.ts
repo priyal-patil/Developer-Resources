@@ -60,6 +60,14 @@ export function lintBlocks(blocks: DocBlock[]): LintFinding[] {
         if (dq % 2 !== 0) add(`Unbalanced double quotes (${dq} found)`, cmdLine);
         if (sq2 % 2 !== 0) add(`Unbalanced single quotes (${sq2} found)`, cmdLine);
       }
+
+      // A bare "cm:namespace:command ..." with no leading "csdx " is not
+      // runnable as printed — bash would look for a binary literally named
+      // "cm:stacks:import-setup" and fail with "command not found".
+      const bareCmd = cmdLine.match(/^(cm:[\w:-]+)\b/);
+      if (bareCmd && !/^csdx\s/.test(cmdLine)) {
+        add(`Missing "csdx" prefix — "${bareCmd[1]}" as printed is not a runnable command`, cmdLine);
+      }
     }
   }
   return findings;
@@ -97,6 +105,26 @@ export function lintProse(prose: ProseSegment[], flagNames: string[]): LintFindi
     const inv = p.text.match(INVISIBLES);
     if (inv?.index !== undefined) {
       add(`Invisible character (U+${inv[0].codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}) in prose — breaks copy-paste`, inv.index);
+    }
+
+    // An Options-list bullet whose flag starts with an en/em dash instead of
+    // a hyphen — unconditional, unlike the dashFlag check below, because
+    // this exact bug is what stops the flag from ever becoming "known" in
+    // the first place (the Options parser requires ASCII hyphens). Two
+    // shapes seen in practice: a bare leading en-dash ("–y, --yes: ...",
+    // one dash total) and a hyphen immediately followed by an en-dash
+    // ("-–org=org: ...", likely an editor auto-converting a typed "--org"
+    // into hyphen+en-dash) — the second still breaks a --long flag even
+    // though a literal "-" opens the line.
+    const leadingDash = p.text.match(/^-?[–—](\w[\w-]*)\b/);
+    if (leadingDash) {
+      const isDoubleDashAttempt = p.text.startsWith("-");
+      add(
+        isDoubleDashAttempt
+          ? `Hyphen + en/em dash instead of "--" on flag "--${leadingDash[1]}" — breaks copy-paste and the flag never parses as documented`
+          : `En/em dash instead of a hyphen on short flag "-${leadingDash[1]}" — breaks copy-paste and the flag never parses as documented`,
+        0
+      );
     }
 
     // csdx command mentions with malformed paths. (No trailing-colon check in

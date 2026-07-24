@@ -20,6 +20,18 @@ import path from "node:path";
  */
 export function node22Bin(): string {
   const nvmDir = path.join(homedir(), ".nvm/versions/node");
+  if (!existsSync(nvmDir)) {
+    // No nvm here — e.g. a CI runner where actions/setup-node@v4 puts a
+    // single Node version directly on PATH, with no per-version nvm
+    // layout to scan. Trust the CURRENT runtime + PATH instead, but still
+    // enforce the doc's real Node >= 22 prerequisite explicitly rather
+    // than silently running under whatever's active.
+    const major = Number(process.versions.node.split(".")[0]);
+    if (major < 22) {
+      throw new Error(`Node >= 22 required (doc prerequisite) — current runtime is Node ${process.versions.node} and no ~/.nvm install was found to select a newer one`);
+    }
+    return path.dirname(process.execPath);
+  }
   const versions = readdirSync(nvmDir)
     .map((v) => v.match(/^v(\d+)\.(\d+)\.(\d+)$/))
     .filter((m): m is RegExpMatchArray => !!m && Number(m[1]) >= 22)
@@ -55,7 +67,7 @@ export interface RunOutcome {
   promptsAnswered: string[];
 }
 
-const DEFAULT_PROMPTS = [
+export const DEFAULT_PROMPTS = [
   { re: /encryption key/i, send: "cli-automation-key\n" },
   // Path prompt from `cm:stacks:export` without --data-dir; Enter accepts the default.
   { re: /Enter the path[^:]*:/i, send: "\n" },
@@ -65,6 +77,33 @@ const DEFAULT_PROMPTS = [
   { re: /password/i, send: `${process.env.CONTENTSTACK_PASSWORD ?? ""}\n`, label: "<QA account password>" },
   { re: /\(y\/n\)|\(Y\/n\)/, send: "y\n" },
   { re: /are you sure/i, send: "yes\n" },
+  // compare-and-merge-branches-using-the-cli doc's merge example that omits
+  // --base-branch prompts for it as required text input — blank Enter loops
+  // forever ("This field can't be empty."); "main" is the real base branch
+  // on every stack we seed.
+  // config:set:base-branch's own wizard drops the "name" suffix
+  // ("Enter base branch ") that cm:branches:diff/:merge use — match both.
+  { re: /Enter base branch(\s+name)?\b/i, send: "main\n" },
+  // cm:branches:diff/:merge's bare wizard asks for the compare branch next
+  // as required text input too — "develop" matches the doc's own dummy
+  // compare-branch convention; this plan typically has no second branch
+  // alive by this point in the run, so it legitimately resolves to a real
+  // "Invalid compare branch" error rather than hanging, same as the doc's
+  // own flagged examples using the same dummy name.
+  { re: /Enter compare branch name/i, send: "develop\n" },
+  // cm:branches:create's bare wizard asks for the source branch next.
+  { re: /Enter source branch/i, send: "main\n" },
+  { re: /Enter branch UID/i, send: "cli-automation-bare-branch\n" },
+  // configure-early-access-program-in-the-cli doc's bare
+  // config:set:early-access-header wizard asks for alias then value as
+  // required text input.
+  { re: /Please enter Early Access header alias/i, send: "cli-automation-alias\n" },
+  { re: /Please enter Early Access header value/i, send: "cli-automation-value\n" },
+  // configure-rate-limits-in-the-cli doc's bare config:set/remove:rate-limit
+  // wizards ask for the org UID as required text input — the generic
+  // catch-all's blank Enter is silently accepted (no validation), but that
+  // tests an empty-org edge case rather than the doc's real intent.
+  { re: /Provide the organization UID/i, send: `${process.env.CONTENTSTACK_ORG_ID ?? ""}\n` },
   // Generic inquirer prompt fallback — covers both text-input prompts
   // ("? Enter X:") and list-select prompts ("? Please select a region
   // (Use arrow keys)", no colon). Enter accepts the default/highlighted
@@ -87,6 +126,24 @@ export function run(command: string, opts: RunOptions = {}): Promise<RunOutcome>
     let out = "";
     let timedOut = false;
     let lastAnswered = "";
+    // Prompts whose `send` is more than a bare newline (real typed text, e.g.
+    // a type-ahead org/project name) must fire exactly ONCE per occurrence —
+    // the redraw-tolerant tail check below re-fires on every keystroke's
+    // redraw (the screen text keeps changing as inquirer echoes each typed
+    // character), which previously caused the same string to be typed
+    // repeatedly into a filter box. Track those by index instead.
+    const sentOnce = new Set<number>();
+    // Once a prompt gets a REAL typed answer, the child keeps redrawing
+    // that same prompt line as it echoes each typed character back over
+    // several separate stdout chunks — during that window, a generic
+    // blank-Enter rule (the catch-all) can ALSO match the still-visible
+    // "? Enter the stack api key bl..." text and fire a stray blank Enter
+    // into the middle of the real answer being typed, truncating it
+    // (verified by hand: this produced an empty stack key server-side
+    // despite the real value having been written correctly). Track which
+    // patterns already got a real typed answer and suppress every OTHER
+    // (blank-answer) rule while that same prompt is still the active one.
+    const typedAnsweredPatterns: RegExp[] = [];
     const promptsAnswered: string[] = [];
     const timer = setTimeout(() => {
       timedOut = true;
@@ -98,10 +155,43 @@ export function run(command: string, opts: RunOptions = {}): Promise<RunOutcome>
       if (out.length > 200_000) out = out.slice(-150_000);
       // Answer at most one prompt per pattern occurrence to avoid loops.
       const tail = out.slice(-500);
-      for (const p of prompts) {
-        const m = tail.match(p.re);
-        if (m && lastAnswered !== tail) {
+      // Terminal prompts redraw via cursor-repositioning ANSI codes rather
+      // than real newlines, so an OLD, already-answered prompt's text can
+      // remain joined with a NEWER, different prompt inside the same
+      // sliding tail window with no newline between them. Matching rules
+      // against the whole tail let the old prompt's rule keep re-firing
+      // and send a stray blank Enter onto whatever prompt is now actually
+      // active — verified by hand: this silently submitted a later "Enter
+      // the stack api key" prompt as empty before its own real-value rule
+      // ever got a chance to answer it. Every prompt observed from this
+      // CLI is inquirer-style, prefixed with "? " (question mark + a real
+      // space) — restrict matching to text from the LAST such marker
+      // onward, i.e. the prompt that's actually on-screen right now.
+      // Plain lastIndexOf("?") is NOT enough: ANSI cursor-control codes
+      // like "\x1b[?25l" (hide cursor) also contain a literal "?", and one
+      // of those can appear AFTER the real prompt text (e.g. list-style
+      // prompts print it right after rendering) — matching on THAT "?"
+      // truncated activeSegment down to just the ANSI fragment, missing
+      // the actual prompt text entirely and leaving list-style prompts
+      // like "? Hosting type" unanswerable (confirmed by hand: a real
+      // app:deploy hung 10 minutes on exactly this). ANSI "?" is always
+      // followed by digits, never whitespace, so "?" + whitespace reliably
+      // disambiguates a real inquirer prompt marker from an ANSI code.
+      let lastQ = -1;
+      for (const qm of tail.matchAll(/\?\s/g)) lastQ = qm.index ?? lastQ;
+      const activeSegment = lastQ === -1 ? tail : tail.slice(lastQ);
+      if (typedAnsweredPatterns.some((re) => re.test(activeSegment))) return;
+      for (let i = 0; i < prompts.length; i++) {
+        const p = prompts[i];
+        const isTypedAnswer = p.send.length > 1 && p.send !== "\n";
+        if (isTypedAnswer && sentOnce.has(i)) continue;
+        const m = activeSegment.match(p.re);
+        if (m && (isTypedAnswer || lastAnswered !== tail)) {
           lastAnswered = tail;
+          if (isTypedAnswer) {
+            sentOnce.add(i);
+            typedAnsweredPatterns.push(p.re);
+          }
           // Terminal UIs redraw the prompt line; keep answering redraws
           // (harmless newlines) but record each unique prompt once. Use
           // `label` instead of the literal answer for secrets (credentials).
@@ -121,6 +211,19 @@ export function run(command: string, opts: RunOptions = {}): Promise<RunOutcome>
     child.on("close", (code) => {
       clearTimeout(timer);
       resolve({ exitCode: code, output: out, timedOut, durationMs: Date.now() - started, promptsAnswered });
+    });
+    // A cwd that doesn't exist (or other spawn-level failures) fires this
+    // instead of ever starting the child — without a handler, Node treats
+    // it as an unhandled 'error' event and crashes the whole automation
+    // process (confirmed by hand: create-custom-cli-plugins' own "cd
+    // ./myplugin" example, read literally right after an earlier step
+    // already changed into that same directory, resolves to a nonexistent
+    // nested path). Resolve as a real, honest failure instead — a bad cwd
+    // is exactly the kind of doc-structure gap this harness should report,
+    // not crash on.
+    child.on("error", (err) => {
+      clearTimeout(timer);
+      resolve({ exitCode: null, output: out + `\n[spawn error: ${err.message}]`, timedOut, durationMs: Date.now() - started, promptsAnswered });
     });
   });
 }

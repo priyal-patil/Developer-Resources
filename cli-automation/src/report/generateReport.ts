@@ -34,10 +34,34 @@ export function generateHtml(r: RunReport): string {
       ? `<span class="pill" style="background:#B0F7BA;color:#1A1919">ALL GOOD</span>`
       : `<span class="pill" style="background:#FF6B6B;color:#1A1919">${r.gapCount} GAPS FOUND</span>`;
 
-  const execRows = r.execResults
+  // The doc's own markdown often repeats the exact same bare command
+  // verbatim in multiple, non-adjacent sections (main walkthrough, then
+  // "Alternatively", then "Examples") — each is a genuinely separate
+  // block we still execute independently, but showing 3 identical rows
+  // (interleaved with the doc's other, different flagged examples) just
+  // reads as noise. Group every row that's fully identical (same command,
+  // section, substitutions, and result) wherever it appears into one row
+  // with an "×N" count, at its first-seen position — no underlying data
+  // is dropped, only the display collapses.
+  const execRowKey = (x: (typeof r.execResults)[number]) => `${x.status}|${x.docCommand}|${x.section}|${x.substitutions.join(",")}|${x.gap ?? x.skipReason ?? ""}`;
+  const groups = new Map<string, { e: (typeof r.execResults)[number]; count: number }>();
+  const dedupedExecRows: { e: (typeof r.execResults)[number]; count: number }[] = [];
+  for (const e of r.execResults) {
+    const key = execRowKey(e);
+    const existing = groups.get(key);
+    if (existing) {
+      existing.count++;
+    } else {
+      const entry = { e, count: 1 };
+      groups.set(key, entry);
+      dedupedExecRows.push(entry);
+    }
+  }
+
+  const execRows = dedupedExecRows
     .map(
-      (e) => `<tr>
-      <td>${pill(e.status)}</td>
+      ({ e, count }) => `<tr>
+      <td>${pill(e.status)}${count > 1 ? ` <span class="dim">×${count}</span>` : ""}</td>
       <td class="mono">${esc(e.docCommand)}</td>
       <td class="dim">${esc(e.section)}${e.label ? `<br><em>${esc(e.label)}</em>` : ""}</td>
       <td class="dim">${e.substitutions.map(esc).join("<br>") || "—"}</td>

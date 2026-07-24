@@ -3,3 +3,5 @@ workdir/
 .env
 reports/*.html
 reports/*.json
+logs/
+bulk-operation/

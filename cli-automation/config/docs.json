@@ -25,6 +25,190 @@
       "url": "https://www.contentstack.com/docs/headless-cms/import-content-using-the-cli",
       "commands": ["cm:stacks:import", "cm:import"],
       "needsSourceExport": true
+    },
+    {
+      "name": "cli-supported-features",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-supported-features-for-export-import-and-clone-operations",
+      "commands": [],
+      "needsCloneAliases": true
+    },
+    {
+      "name": "overwrite-existing-content",
+      "url": "https://www.contentstack.com/docs/headless-cms/overwrite-existing-content-using-cli-import",
+      "commands": ["cm:stacks:import-setup"],
+      "needsSourceExport": true
+    },
+    {
+      "name": "cloning-a-stack",
+      "url": "https://www.contentstack.com/docs/headless-cms/cloning-a-stack",
+      "commands": ["cm:stacks:clone"],
+      "needsCloneAliases": true
+    },
+    {
+      "name": "bulk-publish",
+      "url": "https://www.contentstack.com/docs/headless-cms/bulk-publish-and-unpublish-content",
+      "commands": [
+        "cm:entries:publish",
+        "cm:entries:publish-modified",
+        "cm:entries:publish-only-unpublished",
+        "cm:assets:publish",
+        "cm:entries:update-and-publish",
+        "cm:entries:publish-non-localized-fields",
+        "cm:stacks:publish-revert",
+        "cm:entries:unpublish",
+        "cm:assets:unpublish",
+        "cm:stacks:publish-configure"
+      ]
+    },
+    {
+      "name": "cli-for-launch",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-for-launch",
+      "commands": ["launch", "launch:logs", "launch:functions", "launch:deployments", "launch:environments", "launch:open", "launch:rollback"]
+    },
+    {
+      "name": "cli-for-launch-staging",
+      "url": "https://stag-www.contentstack.com/docs/headless-cms/cli-for-launch",
+      "commands": ["launch", "launch:logs", "launch:functions", "launch:deployments", "launch:environments", "launch:open", "launch:rollback"]
+    },
+    {
+      "name": "compare-and-merge-branches",
+      "url": "https://www.contentstack.com/docs/headless-cms/compare-and-merge-branches-using-the-cli",
+      "commands": ["cm:branches", "cm:branches:create", "cm:branches:delete", "cm:branches:diff", "cm:branches:merge", "config:set:base-branch", "config:get:base-branch", "config:remove:base-branch"]
+    },
+    {
+      "name": "configure-early-access",
+      "url": "https://www.contentstack.com/docs/headless-cms/configure-early-access-program-in-the-cli",
+      "commands": ["config:set:early-access-header", "config:get:early-access-header", "config:remove:early-access-header"]
+    },
+    {
+      "name": "configure-rate-limits",
+      "url": "https://www.contentstack.com/docs/headless-cms/configure-rate-limits-in-the-cli",
+      "commands": ["config:set:rate-limit", "config:get:rate-limit", "config:remove:rate-limit"]
+    },
+    {
+      "name": "configure-cli-logging",
+      "url": "https://www.contentstack.com/docs/headless-cms/configure-cli-logging-preferences",
+      "commands": ["config:set:log", "config:get:log"]
+    },
+    {
+      "name": "audit-plugin",
+      "url": "https://www.contentstack.com/docs/headless-cms/audit-plugin",
+      "commands": ["cm:stacks:audit", "cm:stacks:audit:fix"]
+    },
+    {
+      "name": "query-based-export",
+      "url": "https://www.contentstack.com/docs/headless-cms/query-based-export",
+      "commands": ["cm:stacks:export-query"]
+    },
+    {
+      "name": "configure-proxy-settings",
+      "url": "https://www.contentstack.com/docs/headless-cms/configure-proxy-settings-in-cli",
+      "commands": ["config:set:proxy", "config:get:proxy", "config:remove:proxy"]
+    },
+    {
+      "name": "bulk-operations",
+      "url": "https://www.contentstack.com/docs/headless-cms/bulk-operations-in-cli",
+      "commands": ["cm:stacks:bulk-entries", "cm:stacks:bulk-assets", "cm:stacks:bulk-am-assets"]
+    },
+    {
+      "name": "cli-for-cs-assets",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-for-cs-assets",
+      "commands": []
+    },
+    {
+      "name": "export-content-to-csv",
+      "url": "https://www.contentstack.com/docs/headless-cms/export-content-to-csv-file",
+      "commands": ["cm:export-to-csv"],
+      "needsTaxonomy": true
+    },
+    {
+      "name": "import-content-seed-command",
+      "url": "https://www.contentstack.com/docs/headless-cms/import-content-using-the-seed-command",
+      "commands": ["cm:stacks:seed"]
+    },
+    {
+      "name": "migration-command",
+      "url": "https://www.contentstack.com/docs/headless-cms/migrate-your-content-using-the-cli-migration-command",
+      "commands": ["cm:stacks:migration"]
+    },
+    {
+      "name": "migrate-html-rte-to-json-rte",
+      "url": "https://www.contentstack.com/docs/headless-cms/migrate-content-from-html-rte-to-json-rte",
+      "commands": ["cm:entries:migrate-html-rte", "auth:tokens:add"],
+      "needsRteFields": true
+    },
+    {
+      "name": "change-master-locale",
+      "url": "https://www.contentstack.com/docs/headless-cms/change-master-locale",
+      "commands": [],
+      "needsMigrationExamples": true
+    },
+    {
+      "name": "tsgen-plugin",
+      "url": "https://www.contentstack.com/docs/headless-cms/tsgen-plugin",
+      "commands": ["tsgen"]
+    },
+    {
+      "name": "apps-cli-plugin",
+      "url": "https://www.contentstack.com/docs/headless-cms/apps-cli-plugin",
+      "commands": ["app:create", "app:get", "app:install", "app:update", "app:deploy", "app:reinstall", "app:uninstall", "app:delete"],
+      "needsAppsCli": true
+    },
+    {
+      "name": "apps-cli-plugin-staging",
+      "url": "https://stag-www.contentstack.com/docs/headless-cms/apps-cli-plugin",
+      "commands": ["app:create", "app:get", "app:install", "app:update", "app:deploy", "app:reinstall", "app:uninstall", "app:delete"],
+      "needsAppsCli": true
+    },
+    {
+      "name": "entry-migration-staging",
+      "url": "https://stag-www.contentstack.com/docs/headless-cms/entry-migration",
+      "commands": ["cm:stacks:migration"]
+    },
+    {
+      "name": "taxonomy-migration-staging",
+      "url": "https://stag-www.contentstack.com/docs/headless-cms/taxonomy-migration",
+      "commands": ["cm:stacks:migration"],
+      "needsTaxonomyMigration": true
+    },
+    {
+      "name": "update-missing-reference-uids-staging",
+      "url": "https://stag-www.contentstack.com/docs/headless-cms/update-missing-reference-uids",
+      "commands": ["cm:stacks:migration"],
+      "needsReferenceUidFix": true
+    },
+    {
+      "name": "migrate-content-between-stacks-staging",
+      "url": "https://stag-www.contentstack.com/docs/headless-cms/migrate-content-between-stacks-using-the-cli",
+      "commands": ["cm:stacks:export", "cm:stacks:audit", "cm:stacks:import"],
+      "needsMigrateBetweenStacks": true
+    },
+    {
+      "name": "migrate-selected-content-types-staging",
+      "url": "https://stag-www.contentstack.com/docs/headless-cms/migrate-selected-content-types-using-the-query-export-plugin",
+      "commands": ["cm:stacks:export-query", "cm:stacks:import", "cm:stacks:import-setup"],
+      "needsMigrateBetweenStacks": true
+    },
+    {
+      "name": "overwrite-same-stack-staging",
+      "url": "https://stag-www.contentstack.com/docs/headless-cms/migrate-and-overwrite-content-in-the-same-stack",
+      "commands": ["cm:stacks:export", "cm:stacks:import-setup", "cm:stacks:import"]
+    },
+    {
+      "name": "create-custom-cli-plugins-staging",
+      "url": "https://stag-www.contentstack.com/docs/headless-cms/create-custom-cli-plugins",
+      "commands": [],
+      "needsCustomPluginCleanup": true
+    },
+    {
+      "name": "cli-config-reference-staging",
+      "url": "https://stag-www.contentstack.com/docs/headless-cms/contentstack-cli-configuration-reference",
+      "commands": []
+    },
+    {
+      "name": "bootstrap-starter-apps",
+      "url": "https://www.contentstack.com/docs/headless-cms/bootstrap-starter-apps",
+      "commands": ["cm:bootstrap"]
     }
   ]
 }

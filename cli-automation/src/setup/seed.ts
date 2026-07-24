@@ -15,6 +15,7 @@
 import {
   createBranchAlias,
   createContentType,
+  createDeliveryToken,
   createEntry,
   createEnvironment,
   createLabel,
@@ -39,6 +40,30 @@ export interface SeedContext {
   realBranch: string;
   /** A real branch alias, if the platform let us create one (doc dummy: developAlias). */
   realBranchAlias?: string;
+  /** UID of one seeded entry (blog_post), for docs needing a real `<base_entry_uid>`. */
+  sampleEntryUid: string;
+  /** A real delivery token scoped to the "production" environment. */
+  deliveryToken: string;
+  /** Set only for docs (export-content-to-csv) that need a real --taxonomy-uid to test against. */
+  taxonomyUid?: string;
+  /** Set only for the change-master-locale doc — the real downloaded migration script + two independent real exported data dirs (one per example command). */
+  migrationScriptPath?: string;
+  migrationExportDirs?: [string, string];
+  /** Set only for the apps-cli-plugin doc — the real Developer Hub app created for its lifecycle. */
+  appUid?: string;
+  appName?: string;
+  /** Resolved lazily, right before an app:uninstall command needing --installation-uid runs — only knowable after a real app:install happened during execution. */
+  appInstallationUid?: string;
+  /** Set only for the taxonomy-migration doc — the real downloaded sample script + base CSV (comma). substitute.ts derives its own per-invocation, uid-suffixed (and optionally pipe-delimited) copies from this. */
+  taxonomyMigrationScriptPath?: string;
+  taxonomyMigrationCsvPath?: string;
+  /** Set only for the update-missing-reference-uids doc — the real downloaded fixup script + real config.json pointing at a genuine backup/mapper dir from a real prior import. */
+  referenceFixScriptPath?: string;
+  referenceFixConfigPath?: string;
+  /** Set only for docs (needsSourceExport) that separately need the ORIGINAL source stack's real API key — after prepareImportDoc runs, ctx.stackApiKey itself becomes the destination stack's key. */
+  sourceStackApiKeyForMigration?: string;
+  /** Set only for migrate-content-between-stacks-using-the-cli — a second, empty destination stack's real API key (ctx.stackApiKey stays the original/source stack for this doc, unlike needsSourceExport). */
+  migrateTargetStackApiKey?: string;
 }
 
 export const ALIAS = "production"; // the alias the doc's examples use verbatim
@@ -50,11 +75,13 @@ export async function seed(): Promise<SeedContext> {
   const { apiKey } = await createStack(stackName);
 
   try {
+    let sampleEntryUid = "";
     for (const uid of CONTENT_TYPES) {
       const title = uid.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
       await createContentType(apiKey, uid, title);
-      await createEntry(apiKey, uid, `${title} One`);
+      const uid1 = await createEntry(apiKey, uid, `${title} One`);
       await createEntry(apiKey, uid, `${title} Two`);
+      if (!sampleEntryUid) sampleEntryUid = uid1; // first blog_post entry
     }
     console.log(`  Content types seeded: ${CONTENT_TYPES.join(", ")} (2 entries each)`);
 
@@ -63,6 +90,9 @@ export async function seed(): Promise<SeedContext> {
     await createLabel(apiKey, "cli-automation-label", CONTENT_TYPES);
     await uploadAsset(apiKey, "cli-automation-sample.txt", "Sample asset seeded by cli-automation.\n");
     console.log("  Environments, label, asset seeded");
+
+    const deliveryToken = await createDeliveryToken(apiKey, "production");
+    console.log("  Delivery token created (scoped to production)");
 
     const branch = await tryCreateBranch(apiKey, "develop");
     console.log(
@@ -94,6 +124,8 @@ export async function seed(): Promise<SeedContext> {
       branchError: branch.error,
       realBranch,
       realBranchAlias: aliasOk ? "developalias" : undefined,
+      sampleEntryUid,
+      deliveryToken,
     };
   } catch (err) {
     // Don't leave a half-seeded stack behind in the shared QA org.

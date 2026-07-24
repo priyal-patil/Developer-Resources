@@ -8,6 +8,7 @@ export type BlockKind =
   | "json" // a config file the doc asks you to create
   | "tree" // a directory-structure tree the doc promises
   | "output" // sample terminal output (not executable)
+  | "code" // illustrative TS/JS source (a Command class, a test file) — not a standalone runnable command
   | "unknown";
 
 export interface DocBlock {

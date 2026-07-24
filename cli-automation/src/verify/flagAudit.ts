@@ -17,16 +17,34 @@ export async function getCliFlags(command: string): Promise<CliFlag[]> {
 /** Parse oclif help output. Handles both same-line and wrapped-description layouts. */
 export function parseHelpFlags(help: string): CliFlag[] {
   const lines = help.split("\n");
-  // Some commands (e.g. `auth:tokens`, a table-output list command) title
-  // their flags section "TABLE FLAGS" instead of plain "FLAGS".
-  const start = lines.findIndex((l) => /^(TABLE )?FLAGS\s*$/.test(l.trim()));
-  if (start === -1) return [];
   const flags: CliFlag[] = [];
   let cur: CliFlag | null = null;
+  // oclif help output can split flags across MULTIPLE labeled sections —
+  // "FLAGS", "COMMON FLAGS", "TABLE FLAGS", "GLOBAL FLAGS" — not just one.
+  // Stopping at the first section header that isn't exactly "FLAGS"/"TABLE
+  // FLAGS" (the old behavior) silently discarded every later section,
+  // undercounting real flags against docs that document all of them.
+  let inFlagsSection = false;
 
-  for (let i = start + 1; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (/^[A-Z][A-Z ]+$/.test(line.trim()) && line.trim().length > 3) break; // next section (DESCRIPTION, EXAMPLES…)
+    const trimmedFull = line.trim();
+    if (/^[A-Z ]*FLAGS$/.test(trimmedFull)) {
+      if (cur) flags.push(cur);
+      cur = null;
+      inFlagsSection = true;
+      continue;
+    }
+    if (/^[A-Z][A-Z ]+$/.test(trimmedFull) && trimmedFull.length > 3) {
+      // A different all-caps section header (DESCRIPTION, EXAMPLES, USAGE,
+      // ALIASES…) — leave the flags-accumulating mode until another *FLAGS
+      // header is seen.
+      if (cur) flags.push(cur);
+      cur = null;
+      inFlagsSection = false;
+      continue;
+    }
+    if (!inFlagsSection) continue;
     // Long-only flags (no short form) are right-padded with extra indentation
     // to align their `=<value>` column under short-flag rows — don't bound
     // the leading whitespace, just require the trimmed line to start with a
