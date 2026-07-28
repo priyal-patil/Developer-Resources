@@ -1,0 +1,5 @@
+{
+    "require": {
+        "contentstack/contentstack": "^2.5"
+    }
+}

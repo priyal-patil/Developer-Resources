@@ -1,0 +1,171 @@
+[
+  {
+    "name": "content-delivery-sdk-typescript-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-delivery-sdk/typescript/reference",
+    "sdkPackage": "@contentstack/delivery-sdk",
+    "sdkKind": "delivery",
+    "runtime": "node-ts",
+    "repoName": "contentstack-typescript",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-management-sdk-javascript-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-management-sdk/javascript/reference",
+    "sdkPackage": "@contentstack/management",
+    "sdkKind": "management",
+    "runtime": "node-js",
+    "repoName": "contentstack-management-javascript",
+    "repoSrcSubdir": "lib",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-marketplace-sdk-javascript-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/marketplace-sdk/javascript/reference",
+    "sdkPackage": "@contentstack/marketplace-sdk",
+    "sdkKind": "marketplace",
+    "runtime": "node-js",
+    "repoName": "contentstack-marketplace-sdk",
+    "repoSrcSubdir": "lib",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-app-sdk-typescript-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/contentstack-app-sdk/typescript/reference",
+    "sdkPackage": "@contentstack/app-sdk",
+    "sdkKind": "app",
+    "runtime": "node-ts",
+    "repoName": "app-sdk",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-marketplace-sdk-java-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/marketplace-sdk/java/reference",
+    "sdkPackage": "com.contentstack.sdk:marketplace",
+    "sdkKind": "marketplace-java",
+    "runtime": "java",
+    "repoName": "contentstack-marketplace-java",
+    "repoSrcSubdir": "src/main/java",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-delivery-sdk-java-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-delivery-sdk/java/reference",
+    "sdkPackage": "com.contentstack.sdk:java",
+    "sdkKind": "delivery-java",
+    "runtime": "java",
+    "repoName": "contentstack-java",
+    "repoSrcSubdir": "src/main/java",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-delivery-sdk-javascript-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-delivery-sdk/javascript-browser/reference",
+    "sdkPackage": "contentstack",
+    "sdkKind": "delivery-legacy-js",
+    "runtime": "node-js",
+    "repoName": "contentstack-javascript",
+    "repoSrcSubdir": "src",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-delivery-sdk-react-native-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-delivery-sdk/react-native/reference",
+    "sdkPackage": "contentstack",
+    "sdkKind": "delivery-legacy-js",
+    "runtime": "node-js",
+    "repoName": "contentstack-javascript",
+    "repoSrcSubdir": "src",
+    "scrapeMode": "dom",
+    "jsImportSpecifier": "contentstack/react-native"
+  },
+  {
+    "name": "content-delivery-sdk-python-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-delivery-sdk/python/reference",
+    "sdkPackage": "contentstack",
+    "sdkKind": "delivery-python",
+    "runtime": "python",
+    "repoName": "contentstack-python",
+    "repoSrcSubdir": "contentstack",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-delivery-sdk-dotnet-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-delivery-sdk/dot-net/reference",
+    "sdkPackage": "contentstack.csharp",
+    "sdkKind": "delivery-dotnet",
+    "runtime": "dotnet",
+    "repoName": "contentstack-dotnet",
+    "repoSrcSubdir": "Contentstack.Core",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-delivery-sdk-php-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-delivery-sdk/php/reference",
+    "sdkPackage": "contentstack/contentstack",
+    "sdkKind": "delivery-php",
+    "runtime": "php",
+    "repoName": "contentstack-php",
+    "repoSrcSubdir": "src",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-delivery-sdk-ruby-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-delivery-sdk/ruby/reference",
+    "sdkPackage": "contentstack",
+    "sdkKind": "delivery-ruby",
+    "runtime": "ruby",
+    "repoName": "contentstack-ruby",
+    "repoSrcSubdir": "lib",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-delivery-sdk-dart-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-delivery-sdk/dart/reference",
+    "sdkPackage": "contentstack",
+    "sdkKind": "delivery-dart",
+    "runtime": "dart",
+    "repoName": "contentstack-dart",
+    "repoSrcSubdir": "lib",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-delivery-sdk-android-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-delivery-sdk/android/reference",
+    "sdkPackage": "com.contentstack.sdk:android",
+    "sdkKind": "delivery-android",
+    "runtime": "android",
+    "repoName": "contentstack-android",
+    "repoSrcSubdir": "contentstack/src/main/java",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-management-sdk-python-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-management-sdk/python/reference",
+    "sdkPackage": "contentstack-management",
+    "sdkKind": "management-python",
+    "runtime": "python",
+    "repoName": "contentstack-management-python",
+    "repoSrcSubdir": "contentstack_management",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-management-sdk-java-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-management-sdk/java/reference",
+    "sdkPackage": "com.contentstack.sdk:cms",
+    "sdkKind": "management-java",
+    "runtime": "java",
+    "repoName": "contentstack-management-java",
+    "repoSrcSubdir": "src/main/java",
+    "scrapeMode": "dom"
+  },
+  {
+    "name": "content-management-sdk-dotnet-reference",
+    "url": "https://www.contentstack.com/docs/developers/sdks/content-management-sdk/dot-net/reference",
+    "sdkPackage": "contentstack.management.csharp",
+    "sdkKind": "management-dotnet",
+    "runtime": "dotnet",
+    "repoName": "contentstack-management-dotnet",
+    "repoSrcSubdir": "Contentstack.Management.Core",
+    "scrapeMode": "dom"
+  }
+]

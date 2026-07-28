@@ -1,0 +1,226 @@
+name: SDK Docs Automation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sdk-automation/**"
+      - ".github/workflows/sdk-docs.yml"
+  schedule:
+    # Weekly, Monday 07:30 IST. GitHub Actions cron is UTC-only; IST is
+    # UTC+5:30 (no DST), so 07:30 IST Monday = 02:00 UTC Monday. Offset an
+    # hour later than cli-docs.yml's own Monday 00:30 UTC run, and well
+    # clear of kickstart-docs.yml's daily 23:30 UTC run, so the three
+    # automations don't create real stacks/tokens/apps in the shared QA
+    # org at the same time. Weekly (not daily) because several of these
+    # docs create real, quota-limited org-wide resources (Marketplace
+    # apps, Management SDK stacks) - see the scarce-resource notes in
+    # sdk-automation's own reports.
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+    inputs:
+      docs:
+        description: >
+          Which doc(s) to run: "all" (every doc in
+          sdk-automation/config/docs.json), or a space-separated list of
+          doc names (e.g. "content-delivery-sdk-typescript-reference
+          content-management-sdk-python-reference"). NOTE: this only
+          covers docs wired into config/docs.json - see the workflow's own
+          comments below for what's intentionally NOT included yet.
+        required: false
+        default: "all"
+
+# NOT covered by this workflow (no reusable, re-runnable harness exists in
+# the repo for these - each was verified via one-off scripts during manual
+# sweeps and reported in sdk-automation/reports/, but those scripts weren't
+# kept as persistent, wired-in code):
+#   - Utils SDK (all 10 languages)
+#   - Personalize Edge SDK (JavaScript)
+#   - DataSync SDK (Filesystem + MongoDB, both TypeScript)
+#   - Content Delivery SDK - iOS (static header audit only, no live harness;
+#     Xcode/Simulator isn't available on ubuntu-latest runners anyway)
+# Extending this workflow to cover any of the above requires first building
+# a persistent seed+run script for it under src/, the same way every doc
+# below already has one.
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.set-matrix.outputs.docs }}
+    defaults:
+      run:
+        working-directory: sdk-automation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build doc matrix
+        id: set-matrix
+        run: |
+          set -e
+          INPUT="${{ github.event.inputs.docs || 'all' }}"
+          if [ "$INPUT" = "all" ]; then
+            DOCS=$(node -e "console.log(JSON.stringify(require('./config/docs.json').map(d => ({ name: d.name, sdkKind: d.sdkKind }))))")
+          else
+            DOCS=$(node -e "
+              const all = require('./config/docs.json');
+              const wanted = process.argv[1].split(' ').filter(Boolean);
+              const matched = all.filter(d => wanted.includes(d.name));
+              console.log(JSON.stringify(matched.map(d => ({ name: d.name, sdkKind: d.sdkKind }))));
+            " "$INPUT")
+          fi
+          echo "docs=$DOCS" >> "$GITHUB_OUTPUT"
+
+  run-docs:
+    needs: discover
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      # Capped rather than fully unbounded, same reasoning as cli-docs.yml:
+      # several docs create real stacks/tokens/apps/branches in the SAME
+      # shared QA org, which has a documented history of quota limits
+      # (e.g. a hard 50-app Marketplace cap, a 1-branch plan limit) and
+      # session-token-expiry flakiness under load - keeping concurrency low
+      # reduces cross-job contention on those shared, finite resources.
+      max-parallel: 3
+      matrix:
+        include: ${{ fromJson(needs.discover.outputs.docs) }}
+    defaults:
+      run:
+        working-directory: sdk-automation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: sdk-automation/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --- Per-language runtime setup, gated by matrix.sdkKind ---
+      # Only the language actually under test in this matrix job gets
+      # installed - keeps most jobs (delivery/management/marketplace/app,
+      # all pure JS/TS) fast, and only pays the extra setup cost on the
+      # ~40% of jobs that need a second runtime.
+
+      - name: Set up JDK 21 (Java/Android docs)
+        if: contains(matrix.sdkKind, 'java') || contains(matrix.sdkKind, 'android')
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Set up Maven (Java/Android docs)
+        if: contains(matrix.sdkKind, 'java') || contains(matrix.sdkKind, 'android')
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: "3.9.6"
+
+      - name: Set up .NET 10 (dotnet docs)
+        if: contains(matrix.sdkKind, 'dotnet')
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Set up PHP (PHP docs)
+        if: contains(matrix.sdkKind, 'php')
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          tools: composer
+
+      - name: Set up Ruby (Ruby docs)
+        if: contains(matrix.sdkKind, 'ruby')
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Set up Dart (Dart docs)
+        if: contains(matrix.sdkKind, 'dart')
+        uses: dart-lang/setup-dart@v1
+
+      - name: Set up Python (Python docs)
+        if: contains(matrix.sdkKind, 'python')
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Playwright Chromium (App SDK doc only)
+        if: matrix.sdkKind == 'app'
+        run: npx playwright install --with-deps chromium
+
+      # --- Seeding: shared fixtures per SDK family, not per language ---
+      # (e.g. every delivery-* sdkKind reuses the ONE seeded Delivery
+      # stack - re-seeding per matrix job would race against sibling jobs
+      # reusing the same stack; each seed script already finds-or-creates
+      # by name, so redundant seeding across matrix jobs in the same run
+      # is safe, just slightly wasteful.)
+
+      - name: Build App SDK test bundle
+        if: matrix.sdkKind == 'app'
+        run: npm run build:testapp
+
+      - name: Seed fixtures for ${{ matrix.name }}
+        env:
+          CONTENTSTACK_EMAIL: ${{ secrets.CONTENTSTACK_EMAIL }}
+          CONTENTSTACK_PASSWORD: ${{ secrets.CONTENTSTACK_PASSWORD }}
+          CONTENTSTACK_REGION: ${{ secrets.CONTENTSTACK_REGION }}
+          CONTENTSTACK_ORG_ID: ${{ secrets.CONTENTSTACK_ORG_ID }}
+        run: |
+          set -e
+          case "${{ matrix.sdkKind }}" in
+            management|management-python|management-java|management-dotnet)
+              npm run seed:management ;;
+            marketplace)
+              npm run seed:marketplace ;;
+            marketplace-java)
+              npm run seed:java-marketplace ;;
+            app)
+              npm run seed:app ;;
+            *)
+              npm run seed ;;
+          esac
+
+      - name: Run ${{ matrix.name }}
+        env:
+          CONTENTSTACK_EMAIL: ${{ secrets.CONTENTSTACK_EMAIL }}
+          CONTENTSTACK_PASSWORD: ${{ secrets.CONTENTSTACK_PASSWORD }}
+          CONTENTSTACK_REGION: ${{ secrets.CONTENTSTACK_REGION }}
+          CONTENTSTACK_ORG_ID: ${{ secrets.CONTENTSTACK_ORG_ID }}
+        run: npm run run-one -- ${{ matrix.name }}
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-docs-report-${{ matrix.name }}-${{ github.run_number }}
+          path: |
+            sdk-automation/reports/**
+          retention-days: 30
+
+      - name: Publish report to dashboard
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.DASHBOARD_DATA_TOKEN }}
+        run: |
+          node scripts/publish-to-dashboard.js > /tmp/dashboard-${{ matrix.name }}.json
+          git clone https://x-access-token:${GH_TOKEN}@github.com/priyal-patil/docs-automation-dashboard-data.git /tmp/dashboard-data
+          cd /tmp/dashboard-data
+          node scripts/publish.js /tmp/dashboard-${{ matrix.name }}.json
+          git config user.name "dashboard-publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Publish developer-resources-docs-automation/sdk-automation/${{ matrix.name }} report ($GITHUB_RUN_ID)" || exit 0
+          for i in 1 2 3 4 5; do
+            git push origin main && break
+            git pull --rebase origin main
+            sleep $((RANDOM % 5 + 1))
+          done

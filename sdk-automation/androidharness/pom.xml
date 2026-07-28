@@ -1,0 +1,100 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.contentstack.sdkautomation</groupId>
+  <artifactId>androidharness</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <!-- The real published contentstack-android AAR's classes.jar, extracted locally (Maven has no native .aar support without a plugin) -->
+    <dependency>
+      <groupId>com.contentstack.sdk</groupId>
+      <artifactId>android</artifactId>
+      <version>4.0.1</version>
+      <scope>system</scope>
+      <systemPath>${project.basedir}/aar-extracted/classes.jar</systemPath>
+    </dependency>
+
+    <!-- Volley is also published only as an .aar (confirmed: no .jar variant on Google Maven) - extracted locally like the main SDK artifact. -->
+    <dependency>
+      <groupId>com.android.volley</groupId>
+      <artifactId>volley</artifactId>
+      <version>1.2.1</version>
+      <scope>system</scope>
+      <systemPath>${project.basedir}/volley-extracted/classes.jar</systemPath>
+    </dependency>
+    <dependency>
+      <groupId>com.squareup.retrofit2</groupId>
+      <artifactId>retrofit</artifactId>
+      <version>2.11.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.squareup.retrofit2</groupId>
+      <artifactId>converter-gson</artifactId>
+      <version>2.11.0</version>
+    </dependency>
+    <!-- okhttp 5.x's base "okhttp" artifact is a Kotlin-Multiplatform metadata-only jar with no
+         real classes (confirmed: unzips to just a MANIFEST + kotlin-project-structure-metadata.json)
+         - the actual JVM classes moved to a separate "okhttp-jvm" artifact. Pinned to the last
+         pre-KMP-split 4.x release instead of chasing the new artifact ID. -->
+    <dependency>
+      <groupId>com.squareup.okhttp3</groupId>
+      <artifactId>okhttp</artifactId>
+      <version>4.12.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.rjeschke</groupId>
+      <artifactId>txtmark</artifactId>
+      <version>0.12</version>
+    </dependency>
+    <!-- The SDK's Volley-based request queue calls into org.apache.http.client.HttpClient
+         (confirmed: Contentstack.getRequestQueue() -> CSHttpConnection.send()), a class
+         removed from the Android platform itself in API 23+ and normally restored via the
+         org.apache.http.legacy <uses-library> declared in the AAR's own AndroidManifest.xml -
+         not something Robolectric provides automatically. The real Apache HttpComponents
+         client (same package name) supplies the missing class for the JVM/Robolectric run. -->
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.5.14</version>
+    </dependency>
+
+    <!-- Robolectric: runs real android.* framework code on the plain JVM via JUnit4, no emulator needed -->
+    <dependency>
+      <groupId>org.robolectric</groupId>
+      <artifactId>robolectric</artifactId>
+      <version>4.15</version>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.2</version>
+    </dependency>
+    <!-- androidx.test:monitor/core/ext:junit/services:storage and androidx.tracing/annotation
+         are NOT declared here - they're published only as .aar (confirmed on Google Maven, no
+         .jar variant exists), and turned out to be required anyway by Robolectric's own
+         internal bootstrap (AndroidTestEnvironment.setUpApplicationState needs
+         androidx.test.platform.app.InstrumentationRegistry even when the test code itself only
+         calls RuntimeEnvironment.getApplication()). Their classes.jar files were extracted
+         manually into extracted-libs/ (same technique as the main SDK/Volley artifacts above)
+         and are appended directly onto the resolved classpath in src/setup/androidHarness.ts
+         rather than fought through Maven's system-scope machinery for each one individually. -->
+  </dependencies>
+
+  <repositories>
+    <repository>
+      <id>google</id>
+      <url>https://maven.google.com</url>
+    </repository>
+    <repository>
+      <id>central</id>
+      <url>https://repo1.maven.org/maven2</url>
+    </repository>
+  </repositories>
+</project>

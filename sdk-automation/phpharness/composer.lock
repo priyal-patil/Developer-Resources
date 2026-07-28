@@ -1,0 +1,214 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "03b717cd3e5462b6f31fa97789852c01",
+    "packages": [
+        {
+            "name": "contentstack/contentstack",
+            "version": "v2.5.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/contentstack/contentstack-php.git",
+                "reference": "e1e2d0dacca2d1a24d4bf73177f5f8fc09bc96b0"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/contentstack/contentstack-php/zipball/e1e2d0dacca2d1a24d4bf73177f5f8fc09bc96b0",
+                "reference": "e1e2d0dacca2d1a24d4bf73177f5f8fc09bc96b0",
+                "shasum": ""
+            },
+            "require": {
+                "contentstack/utils": "^1.0",
+                "php": ">=5.5.0"
+            },
+            "require-dev": {
+                "code-lts/doctum": "^5.3",
+                "phpunit/php-code-coverage": "^10.0",
+                "phpunit/phpunit": "^10.0"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/Support/helper.php"
+                ],
+                "psr-4": {
+                    "Contentstack\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Contentstack",
+                    "homepage": "https://www.contentstack.com/",
+                    "role": "Owner"
+                },
+                {
+                    "name": "Uttam K Ukkoji",
+                    "email": "uttamukkoji@gmail.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Contentstack is a headless CMS with an API-first approach that puts content at the centre. It is designed to simplify the process of publication by separating code from content.",
+            "keywords": [
+                "Contentstack",
+                "api"
+            ],
+            "support": {
+                "issues": "https://github.com/contentstack/contentstack-php/issues",
+                "source": "https://github.com/contentstack/contentstack-php/tree/v2.5.0"
+            },
+            "time": "2026-06-15T10:29:31+00:00"
+        },
+        {
+            "name": "contentstack/utils",
+            "version": "v1.3.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/contentstack/contentstack-utils-php.git",
+                "reference": "6034ed5c84030d0ffab83e922fcf4fe4da13b510"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/contentstack/contentstack-utils-php/zipball/6034ed5c84030d0ffab83e922fcf4fe4da13b510",
+                "reference": "6034ed5c84030d0ffab83e922fcf4fe4da13b510",
+                "shasum": ""
+            },
+            "require": {
+                "marc-mabe/php-enum": "^4.7.0",
+                "php": ">=7.2"
+            },
+            "require-dev": {
+                "phpunit/php-code-coverage": "^9.0",
+                "phpunit/phpunit": "^9.3",
+                "squizlabs/php_codesniffer": "^3.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.3-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Contentstack\\Utils\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Contentstack",
+                    "email": "support@contentstack.com",
+                    "homepage": "https://www.contentstack.com",
+                    "role": "Owner"
+                },
+                {
+                    "name": "Uttam K Ukkoji",
+                    "email": "uttam.ukkoji@contentstack.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Contentstack is a headless CMS with an API-first approach that puts content at the centre. It is designed to simplify the process of publication by separating code from content.",
+            "homepage": "https://github.com/contentstack/contentstack-utils-php",
+            "keywords": [
+                "Contentstack",
+                "utils"
+            ],
+            "support": {
+                "issues": "https://github.com/contentstack/contentstack-utils-php/issues",
+                "source": "https://github.com/contentstack/contentstack-utils-php/tree/v1.3.0"
+            },
+            "time": "2026-06-15T10:34:57+00:00"
+        },
+        {
+            "name": "marc-mabe/php-enum",
+            "version": "v4.7.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/marc-mabe/php-enum.git",
+                "reference": "bb426fcdd65c60fb3638ef741e8782508fda7eef"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/marc-mabe/php-enum/zipball/bb426fcdd65c60fb3638ef741e8782508fda7eef",
+                "reference": "bb426fcdd65c60fb3638ef741e8782508fda7eef",
+                "shasum": ""
+            },
+            "require": {
+                "ext-reflection": "*",
+                "php": "^7.1 | ^8.0"
+            },
+            "require-dev": {
+                "phpbench/phpbench": "^0.16.10 || ^1.0.4",
+                "phpstan/phpstan": "^1.3.1",
+                "phpunit/phpunit": "^7.5.20 | ^8.5.22 | ^9.5.11",
+                "vimeo/psalm": "^4.17.0 | ^5.26.1"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-3.x": "3.2-dev",
+                    "dev-master": "4.7-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "MabeEnum\\": "src/"
+                },
+                "classmap": [
+                    "stubs/Stringable.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Marc Bennewitz",
+                    "email": "dev@mabe.berlin",
+                    "homepage": "https://mabe.berlin/",
+                    "role": "Lead"
+                }
+            ],
+            "description": "Simple and fast implementation of enumerations with native PHP",
+            "homepage": "https://github.com/marc-mabe/php-enum",
+            "keywords": [
+                "enum",
+                "enum-map",
+                "enum-set",
+                "enumeration",
+                "enumerator",
+                "enummap",
+                "enumset",
+                "map",
+                "set",
+                "type",
+                "type-hint",
+                "typehint"
+            ],
+            "support": {
+                "issues": "https://github.com/marc-mabe/php-enum/issues",
+                "source": "https://github.com/marc-mabe/php-enum/tree/v4.7.2"
+            },
+            "time": "2025-09-14T11:18:39+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {},
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}
