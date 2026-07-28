@@ -7,15 +7,19 @@ on:
       - "cli-automation/**"
       - ".github/workflows/cli-docs.yml"
   schedule:
-    # Weekly, Monday 06:00 IST. GitHub Actions cron is UTC-only; IST is
-    # UTC+5:30 (no DST), so 06:00 IST Monday = 00:30 UTC Monday. Offset an
-    # hour from kickstart-docs.yml's own daily 05:00 IST run so the two
-    # automations don't create real stacks/apps in the shared QA org at
-    # the same time. Weekly (not daily) because this suite creates FAR
-    # more real, heavier resources per run than kickstart does (real
-    # stacks, Developer Hub apps, cloned starter-app repos) — adjust the
-    # cadence here if that trade-off should change.
-    - cron: "30 0 * * 1"
+    # Daily, 06:00 IST. GitHub Actions cron is UTC-only; IST is UTC+5:30
+    # (no DST), so 06:00 IST = 00:30 UTC. Sits between kickstart-docs.yml's
+    # daily 23:30 UTC run and sdk-docs.yml's daily 02:00 UTC run, so the
+    # three automations don't create real stacks/apps in the shared QA org
+    # at the same time.
+    #
+    # NOTE: explicitly changed from weekly to daily per request. This
+    # suite creates real, heavier resources per run than kickstart does
+    # (real stacks, Developer Hub apps, cloned starter-app repos) - if
+    # quota/rate-limit errors start showing up in run logs, that's this
+    # cadence change, not a new bug; drop back to weekly
+    # (`- cron: "30 0 * * 1"`) if so.
+    - cron: "30 0 * * *"
   workflow_dispatch:
     inputs:
       docs:
