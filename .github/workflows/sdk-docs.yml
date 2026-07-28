@@ -7,16 +7,21 @@ on:
       - "sdk-automation/**"
       - ".github/workflows/sdk-docs.yml"
   schedule:
-    # Weekly, Monday 07:30 IST. GitHub Actions cron is UTC-only; IST is
-    # UTC+5:30 (no DST), so 07:30 IST Monday = 02:00 UTC Monday. Offset an
-    # hour later than cli-docs.yml's own Monday 00:30 UTC run, and well
-    # clear of kickstart-docs.yml's daily 23:30 UTC run, so the three
-    # automations don't create real stacks/tokens/apps in the shared QA
-    # org at the same time. Weekly (not daily) because several of these
-    # docs create real, quota-limited org-wide resources (Marketplace
-    # apps, Management SDK stacks) - see the scarce-resource notes in
-    # sdk-automation's own reports.
-    - cron: "0 2 * * 1"
+    # Daily, 07:30 IST. GitHub Actions cron is UTC-only; IST is UTC+5:30
+    # (no DST), so 07:30 IST = 02:00 UTC. Offset from cli-docs.yml's Monday
+    # 00:30 UTC run and kickstart-docs.yml's daily 23:30 UTC run, so the
+    # three automations don't create real stacks/tokens/apps in the shared
+    # QA org at the same time.
+    #
+    # NOTE: explicitly changed from weekly to daily per request - several
+    # of these docs create real, quota-limited org-wide resources
+    # (Marketplace apps capped at 50 in this org, a 1-branch plan limit,
+    # Management SDK stacks/tokens) - see the scarce-resource notes in
+    # sdk-automation's own reports. Most seed scripts find-or-reuse by
+    # name, so daily reseeding itself is safe, but if quota-exhaustion
+    # errors start showing up in run logs, that's this cadence change,
+    # not a new bug - drop back to weekly (`- cron: "0 2 * * 1"`) if so.
+    - cron: "0 2 * * *"
   workflow_dispatch:
     inputs:
       docs:
