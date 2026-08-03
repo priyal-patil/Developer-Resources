@@ -1,0 +1,29 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.contentstack.sdkautomation</groupId>
+  <artifactId>javaharness-management</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.contentstack.sdk</groupId>
+      <artifactId>cms</artifactId>
+      <version>1.6.1</version>
+    </dependency>
+    <!-- The harness's own generated code references org.json.JSONObject (for
+         the injected `body` bare-identifier placeholder) - not pulled in
+         transitively by the cms artifact itself. -->
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20231013</version>
+    </dependency>
+  </dependencies>
+</project>

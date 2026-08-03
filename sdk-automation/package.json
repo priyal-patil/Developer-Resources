@@ -1,0 +1,40 @@
+{
+  "name": "sdk-automation",
+  "version": "0.1.0",
+  "description": "Reads each Contentstack SDK reference doc, runs every code snippet verbatim against a seeded QA stack, audits documented methods against the SDK's real API, and reports every gap",
+  "type": "module",
+  "scripts": {
+    "parse": "tsx src/parse/parseDoc.ts",
+    "seed": "tsx src/setup/seedStack.ts",
+    "seed:management": "tsx src/setup/seedManagementStack.ts",
+    "seed:marketplace": "tsx src/setup/seedMarketplaceStack.ts",
+    "seed:app": "tsx src/setup/seedAppSdkStack.ts",
+    "seed:java-marketplace": "tsx src/setup/seedJavaMarketplaceStack.ts",
+    "build:testapp": "esbuild testapp/src/init.ts --bundle --outfile=testapp/dist/bundle.js && cp testapp/index.html testapp/dist/index.html",
+    "run-one": "tsx src/index.ts",
+    "report": "tsx src/report/generateReport.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@contentstack/app-sdk": "^2.4.1",
+    "@contentstack/datasync-filesystem-sdk": "^1.5.3",
+    "@contentstack/datasync-mongodb-sdk": "^1.0.15",
+    "@contentstack/delivery-sdk": "^5.4.0",
+    "@contentstack/management": "^1.30.4",
+    "@contentstack/marketplace-sdk": "^1.5.4",
+    "@contentstack/personalize-edge-sdk": "^1.0.23",
+    "contentstack": "^3.27.1",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/localtunnel": "^2.0.4",
+    "@types/node": "^20.14.0",
+    "esbuild": "^0.28.1",
+    "localtunnel": "^2.0.2",
+    "mongodb": "^7.5.0",
+    "mongodb-memory-server": "^11.2.0",
+    "playwright": "^1.61.1",
+    "tsx": "^4.16.0",
+    "typescript": "^5.4.5"
+  }
+}

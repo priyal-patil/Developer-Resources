@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "kickstart-automation/**"
+      - "building-websites-automation/**"
       - ".github/workflows/kickstart-docs.yml"
   schedule:
     # Daily at 05:00 IST. GitHub Actions cron is UTC-only; IST is UTC+5:30 (no DST),
@@ -131,3 +132,94 @@ jobs:
           to: ${{ secrets.SLACK_CHANNEL_EMAIL }}
           subject: ${{ steps.slack_prep.outputs.subject }}
           body: file://kickstart-automation/reports/slack-summary.txt
+
+      - name: Publish report to dashboard
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.DASHBOARD_DATA_TOKEN }}
+        run: |
+          node scripts/publish-to-dashboard.js > /tmp/dashboard-kickstart-automation.json
+          git clone https://x-access-token:${GH_TOKEN}@github.com/priyal-patil/docs-automation-dashboard-data.git /tmp/dashboard-data
+          cd /tmp/dashboard-data
+          node scripts/publish.js /tmp/dashboard-kickstart-automation.json
+          git config user.name "dashboard-publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Publish developer-resources-docs-automation/kickstart-automation report ($GITHUB_RUN_ID)" || exit 0
+          for i in 1 2 3 4 5; do
+            git push origin main && break
+            git pull --rebase origin main
+            sleep $((RANDOM % 5 + 1))
+          done
+
+  # building-websites-automation is a standalone sibling project (own deps,
+  # .env, config/docs.json) that inherits kickstart-automation's pipeline
+  # contract (parse -> execute verbatim -> verify -> report) but adapts it
+  # for the "Building Websites" doc specifically (different section-split
+  # depth, region codes, .env.sample naming, etc. - see its own README).
+  # It was never folded INTO kickstart-automation's own generic pipeline,
+  # since those adaptations would be lost - instead it runs here as its own
+  # job in the same workflow, on the same schedule, so it's exercised
+  # alongside kickstart-automation without the two pipelines colliding.
+  run-building-websites:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: building-websites-automation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: building-websites-automation/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Contentstack CLI
+        run: npm install -g @contentstack/cli
+
+      - name: Run building-websites automation
+        env:
+          CONTENTSTACK_EMAIL: ${{ secrets.CONTENTSTACK_EMAIL }}
+          CONTENTSTACK_PASSWORD: ${{ secrets.CONTENTSTACK_PASSWORD }}
+          CONTENTSTACK_REGION: ${{ secrets.CONTENTSTACK_REGION }}
+          CONTENTSTACK_ORG_ID: ${{ secrets.CONTENTSTACK_ORG_ID }}
+          AUTOMATE_DASHBOARD: "true"
+        run: npm run run-all
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: building-websites-reports-${{ github.run_number }}
+          path: |
+            building-websites-automation/reports/**
+          retention-days: 30
+
+      - name: Publish report to dashboard
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.DASHBOARD_DATA_TOKEN }}
+        run: |
+          node scripts/publish-to-dashboard.js > /tmp/dashboard-building-websites-automation.json
+          git clone https://x-access-token:${GH_TOKEN}@github.com/priyal-patil/docs-automation-dashboard-data.git /tmp/dashboard-data
+          cd /tmp/dashboard-data
+          node scripts/publish.js /tmp/dashboard-building-websites-automation.json
+          git config user.name "dashboard-publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Publish developer-resources-docs-automation/building-websites-automation report ($GITHUB_RUN_ID)" || exit 0
+          for i in 1 2 3 4 5; do
+            git push origin main && break
+            git pull --rebase origin main
+            sleep $((RANDOM % 5 + 1))
+          done
