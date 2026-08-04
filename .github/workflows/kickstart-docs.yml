@@ -139,9 +139,25 @@ jobs:
           GH_TOKEN: ${{ secrets.DASHBOARD_DATA_TOKEN }}
         run: |
           node scripts/publish-to-dashboard.js > /tmp/dashboard-kickstart-automation.json
+
+          # Stage the one shared HTML report (per-kickstart anchors added by
+          # generateReport.ts) for items[].reportUrl, when it exists. Degrades
+          # gracefully — if the report step didn't run/produce it, we just
+          # publish without the `:<dir>` suffix, same as before this change.
+          REPORTS_DIR=/tmp/reports-kickstart-automation
+          rm -rf "$REPORTS_DIR"
+          if [ -f reports/index.html ]; then
+            mkdir -p "$REPORTS_DIR"
+            cp reports/index.html "$REPORTS_DIR/run-report.html"
+          fi
+
           git clone https://x-access-token:${GH_TOKEN}@github.com/priyal-patil/docs-automation-dashboard-data.git /tmp/dashboard-data
           cd /tmp/dashboard-data
-          node scripts/publish.js /tmp/dashboard-kickstart-automation.json
+          if [ -d "$REPORTS_DIR" ] && [ -n "$(ls -A "$REPORTS_DIR" 2>/dev/null)" ]; then
+            node scripts/publish.js "/tmp/dashboard-kickstart-automation.json:$REPORTS_DIR"
+          else
+            node scripts/publish.js /tmp/dashboard-kickstart-automation.json
+          fi
           git config user.name "dashboard-publisher"
           git config user.email "actions@users.noreply.github.com"
           git add -A
@@ -211,9 +227,23 @@ jobs:
           GH_TOKEN: ${{ secrets.DASHBOARD_DATA_TOKEN }}
         run: |
           node scripts/publish-to-dashboard.js > /tmp/dashboard-building-websites-automation.json
+
+          # Same shared-HTML-with-anchors staging as kickstart-automation
+          # (identical generateReport.ts). Degrades gracefully if missing.
+          REPORTS_DIR=/tmp/reports-building-websites-automation
+          rm -rf "$REPORTS_DIR"
+          if [ -f reports/index.html ]; then
+            mkdir -p "$REPORTS_DIR"
+            cp reports/index.html "$REPORTS_DIR/run-report.html"
+          fi
+
           git clone https://x-access-token:${GH_TOKEN}@github.com/priyal-patil/docs-automation-dashboard-data.git /tmp/dashboard-data
           cd /tmp/dashboard-data
-          node scripts/publish.js /tmp/dashboard-building-websites-automation.json
+          if [ -d "$REPORTS_DIR" ] && [ -n "$(ls -A "$REPORTS_DIR" 2>/dev/null)" ]; then
+            node scripts/publish.js "/tmp/dashboard-building-websites-automation.json:$REPORTS_DIR"
+          else
+            node scripts/publish.js /tmp/dashboard-building-websites-automation.json
+          fi
           git config user.name "dashboard-publisher"
           git config user.email "actions@users.noreply.github.com"
           git add -A

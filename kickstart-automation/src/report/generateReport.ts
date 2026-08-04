@@ -32,6 +32,19 @@ const COLORS: Record<StepStatus, { bg: string; fg: string; label: string }> = {
 const esc = (s: string): string =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+/**
+ * URL-safe slug for a kickstart name, used as the `id` on its report card
+ * so the dashboard-publish adapter can link `items[].reportUrl` at
+ * `reports/run-report.html#<slug>` to the exact card for that kickstart.
+ * Kept in sync with the identical `slugify` in scripts/publish-to-dashboard.js.
+ */
+export const slugify = (name: string): string =>
+  String(name)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 function pill(status: StepStatus): string {
   const c = COLORS[status] ?? COLORS.skipped;
   return `<span class="pill" style="background:${c.bg};color:${c.fg}">${c.label}</span>`;
@@ -58,7 +71,7 @@ function card(r: KickstartResult): string {
     .filter((x) => x.n > 0)
     .map((x) => `${x.n} ${COLORS[x.st].label.toLowerCase()}`)
     .join(" · ");
-  return `<section class="card">
+  return `<section class="card" id="${esc(slugify(r.kickstart))}">
     <div class="card-head">
       <h2>${esc(r.kickstart)}</h2>${badge}
     </div>

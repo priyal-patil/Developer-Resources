@@ -29,6 +29,20 @@
 // dashboard's "what needs attention" list) — a human should double check
 // whether "warnings" is the right bucket for these vs. folding them into
 // failed/total.
+//
+// items[]/warnings[] (schema v1.1, optional): this suite is already
+// per-doc granularity (one suite = one doc), so there's no per-row anchor
+// to add inside the doc's own reports/index.html the way kickstart's
+// per-card anchors work — `items[]` here is ONE entry representing the
+// whole doc's overall pass/fail, reportUrl pointing at the whole HTML
+// report file (copied by the workflow into reports/<docName>.html, no
+// fragment needed since it's the only item). `warnings[]` maps
+// flagFindings/structureFindings/lintFindings 1:1 — these are genuinely
+// non-blocking doc-vs-CLI audit findings (every execResults command still
+// ran and is judged separately via failedItems/items status), except
+// structureFindings entries with kind "note" (informational — "doc has no
+// tree to verify" — not an actual finding), which are dropped rather than
+// forced into warnings.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -77,6 +91,49 @@ if (gapCount > 0) {
   });
 }
 
+const reportUrl = `data/${PROJECT}/${docName}/reports/${docName}.html`;
+
+const overallStatus = failedExec.length > 0 ? "fail" : gapCount > 0 ? "warning" : "pass";
+const overallDetail =
+  overallStatus === "fail"
+    ? failedItems.map((i) => i.name).join(", ")
+    : overallStatus === "warning"
+      ? `${gapCount} gap(s) found — see warnings`
+      : null;
+
+const items = [
+  {
+    name: docTitle,
+    status: overallStatus,
+    detail: overallDetail,
+    docLink: docUrl,
+    reportUrl,
+  },
+];
+
+const warnings = [
+  ...(source.flagFindings || []).map((f) => ({
+    name: `Flag: ${f.flag}`,
+    detail: `${f.kind} — doc: ${f.doc || "—"} / cli: ${f.cli || "—"}`,
+    docLink: docUrl,
+    reportUrl,
+  })),
+  ...(source.structureFindings || [])
+    .filter((f) => f.kind !== "note")
+    .map((f) => ({
+      name: `Structure: ${f.entry}`,
+      detail: `${f.kind}${f.detail ? ` — ${f.detail}` : ""}`,
+      docLink: docUrl,
+      reportUrl,
+    })),
+  ...(source.lintFindings || []).map((f) => ({
+    name: `Lint (${f.section || "doc"})`,
+    detail: `${f.issue}: ${f.snippet}`,
+    docLink: docUrl,
+    reportUrl,
+  })),
+];
+
 let durationSeconds = null;
 if (source.startedAt && source.finishedAt) {
   const started = Date.parse(source.startedAt);
@@ -110,6 +167,8 @@ const normalized = {
   },
   failedItems,
   docLinks: docUrl ? [docUrl] : [],
+  items,
+  warnings,
 };
 
 process.stdout.write(JSON.stringify(normalized, null, 2) + "\n");
