@@ -6,7 +6,6 @@ export default async function HomePage() {
   return (
     <main>
       <h1>{entry?.title ?? "Homepage"}</h1>
-      <p>auto-deploy-test-marker</p>
     </main>
   );
 }
