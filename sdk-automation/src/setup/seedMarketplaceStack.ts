@@ -52,6 +52,9 @@ async function main() {
     stack = await createStack(STACK_NAME);
   }
   const stackApiKey = stack.apiKey;
+  // Runs land in a public repo's logs — mask the key so Actions redacts it here
+  // and in anything logged downstream.
+  if (process.env.CI) console.log(`::add-mask::${stackApiKey}`);
   console.log(`[seed-mkt] Stack API key: ${stackApiKey}`);
 
   console.log(`[seed-mkt] Looking for existing app "${APP_NAME}"...`);

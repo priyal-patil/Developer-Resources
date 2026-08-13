@@ -20,6 +20,9 @@ on:
         required: false
         default: "all"
 
+permissions:
+  contents: read
+
 jobs:
   run-kickstarts:
     runs-on: ubuntu-latest
@@ -29,10 +32,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: "npm"
@@ -62,14 +65,10 @@ jobs:
             npx tsx src/index.ts $KICKSTARTS
           fi
 
-      - name: Upload reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kickstart-reports-${{ github.run_number }}
-          path: |
-            kickstart-automation/reports/**
-          retention-days: 30
+      # Reports are deliberately NOT uploaded as run artifacts: this workflow
+      # runs in a public repo, where artifacts are world-downloadable, and the
+      # reports embed stack API keys. The publish step below sends the same
+      # reports to the private dashboard-data repo instead.
 
       - name: Prepare Slack summary (sent via channel email)
         if: always()
@@ -107,7 +106,7 @@ jobs:
                 "",
                 lines,
                 "",
-                `View full report, screenshots & bug-report docs: ${process.env.RUN_URL}`,
+                `View run: ${process.env.RUN_URL} (full report, screenshots & bug-report docs are published to the dashboard)`,
               ].join("\n");
               fs.writeFileSync("reports/slack-summary.txt", text);
               const subject = `Kickstart Docs Automation — ${passed}/${results.length} passed`;
@@ -121,7 +120,7 @@ jobs:
       # as a message — no Slack app/webhook needed. Uses Gmail/Workspace SMTP.
       - name: Send Slack alert via channel email
         if: always() && steps.slack_prep.outputs.send == 'true'
-        uses: dawidd6/action-send-mail@v3
+        uses: dawidd6/action-send-mail@4226df7daafa6fc901a43789c49bf7ab309066e7 # v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
@@ -169,10 +168,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: "npm"
@@ -196,14 +195,10 @@ jobs:
           AUTOMATE_DASHBOARD: "true"
         run: npm run run-all
 
-      - name: Upload reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: building-websites-reports-${{ github.run_number }}
-          path: |
-            building-websites-automation/reports/**
-          retention-days: 30
+      # Reports are deliberately NOT uploaded as run artifacts: this workflow
+      # runs in a public repo, where artifacts are world-downloadable, and the
+      # reports embed stack API keys. The publish step below sends the same
+      # reports to the private dashboard-data repo instead.
 
       - name: Publish report to dashboard
         if: always()

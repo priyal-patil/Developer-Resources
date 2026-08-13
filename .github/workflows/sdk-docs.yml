@@ -48,6 +48,9 @@ on:
 # a persistent seed+run script for it under src/, the same way every doc
 # below already has one.
 
+permissions:
+  contents: read
+
 jobs:
   discover:
     runs-on: ubuntu-latest
@@ -58,7 +61,7 @@ jobs:
         working-directory: sdk-automation
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Build doc matrix
         id: set-matrix
@@ -98,10 +101,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: "npm"
@@ -118,43 +121,43 @@ jobs:
 
       - name: Set up JDK 21 (Java/Android docs)
         if: contains(matrix.sdkKind, 'java') || contains(matrix.sdkKind, 'android')
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: "temurin"
           java-version: "21"
 
       - name: Set up Maven (Java/Android docs)
         if: contains(matrix.sdkKind, 'java') || contains(matrix.sdkKind, 'android')
-        uses: stCarolas/setup-maven@v5
+        uses: stCarolas/setup-maven@d6af6abeda15e98926a57b5aa970a96bb37f97d1 # v5
         with:
           maven-version: "3.9.6"
 
       - name: Set up .NET 10 (dotnet docs)
         if: contains(matrix.sdkKind, 'dotnet')
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: "10.0.x"
 
       - name: Set up PHP (PHP docs)
         if: contains(matrix.sdkKind, 'php')
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: "8.3"
           tools: composer
 
       - name: Set up Ruby (Ruby docs)
         if: contains(matrix.sdkKind, 'ruby')
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
         with:
           ruby-version: "3.3"
 
       - name: Set up Dart (Dart docs)
         if: contains(matrix.sdkKind, 'dart')
-        uses: dart-lang/setup-dart@v1
+        uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1
 
       - name: Set up Python (Python docs)
         if: contains(matrix.sdkKind, 'python')
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
 
@@ -202,14 +205,10 @@ jobs:
           CONTENTSTACK_ORG_ID: ${{ secrets.CONTENTSTACK_ORG_ID }}
         run: npm run run-one -- ${{ matrix.name }}
 
-      - name: Upload report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdk-docs-report-${{ matrix.name }}-${{ github.run_number }}
-          path: |
-            sdk-automation/reports/**
-          retention-days: 30
+      # Reports are deliberately NOT uploaded as run artifacts: this workflow
+      # runs in a public repo, where artifacts are world-downloadable, and the
+      # reports embed stack API keys. The publish step below sends the same
+      # reports to the private dashboard-data repo instead.
 
       - name: Publish report to dashboard
         if: always()

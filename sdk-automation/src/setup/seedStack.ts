@@ -69,6 +69,9 @@ async function main() {
     stack = await createStack(STACK_NAME);
   }
   const apiKey = stack.apiKey;
+  // Runs land in a public repo's logs — mask the key so Actions redacts it here
+  // and in anything logged downstream.
+  if (process.env.CI) console.log(`::add-mask::${apiKey}`);
   console.log(`[seed] Stack API key: ${apiKey}`);
 
   console.log(`[seed] Ensuring content type "${CONTENT_TYPE_UID}"...`);

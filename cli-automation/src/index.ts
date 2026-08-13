@@ -106,6 +106,9 @@ console.log("\n[3/6] Setup: snapshot csdx config + seed QA stack…");
 const hadConfig = snapshotCsdxConfig(configBackup);
 if (!hadConfig) console.log("  (no existing csdx config to snapshot)");
 let ctx = await seed();
+// Runs land in a public repo's logs — mask the key so Actions redacts it here
+// and in anything logged downstream.
+if (process.env.CI) console.log(`::add-mask::${ctx.stackApiKey}`);
 console.log(`  Stack ready: ${ctx.stackName} (${ctx.stackApiKey})`);
 
 // Docs like import-content need real exported content to work with, and
