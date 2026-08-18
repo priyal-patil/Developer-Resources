@@ -115,13 +115,27 @@ jobs:
           node scripts/publish-to-dashboard.js > /tmp/dashboard-${{ matrix.doc }}.json
           git clone https://x-access-token:${GH_TOKEN}@github.com/priyal-patil/docs-automation-dashboard-data.git /tmp/dashboard-data
           cd /tmp/dashboard-data
-          node scripts/publish.js /tmp/dashboard-${{ matrix.doc }}.json
           git config user.name "dashboard-publisher"
           git config user.email "actions@users.noreply.github.com"
-          git add -A
-          git commit -m "Publish developer-resources-docs-automation/${{ matrix.doc }} report ($GITHUB_RUN_ID)" || exit 0
-          for i in 1 2 3 4 5; do
-            git push origin main && break
-            git pull --rebase origin main
-            sleep $((RANDOM % 5 + 1))
+
+          pushed=false
+          for i in $(seq 1 10); do
+            # Re-run publish.js fresh against whatever main currently has, so a
+            # rebase below never leaves latest.json/history-index.json stale
+            # or drops another matrix job's concurrent commit.
+            node scripts/publish.js /tmp/dashboard-${{ matrix.doc }}.json
+            git add -A
+            git commit -m "Publish developer-resources-docs-automation/${{ matrix.doc }} report ($GITHUB_RUN_ID)" || true
+            if git push origin main; then
+              pushed=true
+              break
+            fi
+            git fetch origin main
+            git reset --hard origin/main
+            sleep $(( (RANDOM % 4000 + 1000) * i / 1000 ))
           done
+
+          if [ "$pushed" != "true" ]; then
+            echo "::error::Failed to push dashboard report for ${{ matrix.doc }} after 10 attempts"
+            exit 1
+          fi

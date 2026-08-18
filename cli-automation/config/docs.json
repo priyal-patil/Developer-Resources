@@ -40,13 +40,13 @@
     },
     {
       "name": "cloning-a-stack",
-      "url": "https://www.contentstack.com/docs/headless-cms/cloning-a-stack",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-cloning-a-stack",
       "commands": ["cm:stacks:clone"],
       "needsCloneAliases": true
     },
     {
       "name": "bulk-publish",
-      "url": "https://www.contentstack.com/docs/headless-cms/bulk-publish-and-unpublish-content",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-bulk-publish-and-unpublish-content/v1",
       "commands": [
         "cm:entries:publish",
         "cm:entries:publish-modified",
@@ -92,12 +92,12 @@
     },
     {
       "name": "audit-plugin",
-      "url": "https://www.contentstack.com/docs/headless-cms/audit-plugin",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-audit-plugin",
       "commands": ["cm:stacks:audit", "cm:stacks:audit:fix"]
     },
     {
       "name": "query-based-export",
-      "url": "https://www.contentstack.com/docs/headless-cms/query-based-export",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-query-based-export",
       "commands": ["cm:stacks:export-query"]
     },
     {
@@ -117,13 +117,13 @@
     },
     {
       "name": "export-content-to-csv",
-      "url": "https://www.contentstack.com/docs/headless-cms/export-content-to-csv-file",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-export-content-to-csv-file",
       "commands": ["cm:export-to-csv"],
       "needsTaxonomy": true
     },
     {
       "name": "import-content-seed-command",
-      "url": "https://www.contentstack.com/docs/headless-cms/import-content-using-the-seed-command",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-import-content-using-the-seed-command",
       "commands": ["cm:stacks:seed"]
     },
     {
@@ -133,19 +133,19 @@
     },
     {
       "name": "migrate-html-rte-to-json-rte",
-      "url": "https://www.contentstack.com/docs/headless-cms/migrate-content-from-html-rte-to-json-rte",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-migrate-content-from-html-rte-to-json-rte/v1",
       "commands": ["cm:entries:migrate-html-rte", "auth:tokens:add"],
       "needsRteFields": true
     },
     {
       "name": "change-master-locale",
-      "url": "https://www.contentstack.com/docs/headless-cms/change-master-locale",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-change-master-locale",
       "commands": [],
       "needsMigrationExamples": true
     },
     {
       "name": "tsgen-plugin",
-      "url": "https://www.contentstack.com/docs/headless-cms/tsgen-plugin",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-tsgen-plugin/v1",
       "commands": ["tsgen"]
     },
     {
@@ -207,7 +207,7 @@
     },
     {
       "name": "bootstrap-starter-apps",
-      "url": "https://www.contentstack.com/docs/headless-cms/bootstrap-starter-apps",
+      "url": "https://www.contentstack.com/docs/headless-cms/cli-bootstrap-starter-apps",
       "commands": ["cm:bootstrap"]
     }
   ]
