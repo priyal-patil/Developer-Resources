@@ -1,6 +1,6 @@
 /** Shared types for the read → execute → verify → report pipeline. */
 
-export type StepKind = "shell" | "cli" | "dashboard" | "env" | "verify" | "unknown";
+export type StepKind = "shell" | "cli" | "dashboard" | "env" | "file" | "verify" | "unknown";
 
 /** One step extracted from a Kickstart doc. */
 export interface DocStep {
@@ -39,6 +39,14 @@ export interface KickstartConfig {
    * only after all dependents have run.
    */
   reuseStackFrom?: string;
+  /** Environment name this doc publishes to (overrides the "development" default). */
+  environment?: string;
+  /**
+   * Extra local routes to screenshot/check in the verify stage, beyond "/".
+   * Doc-specific (the first doc's nav links to routes it never creates entries
+   * for) — defaults to [] for docs that don't name any.
+   */
+  navRoutes?: string[];
 }
 
 /** Mutable state threaded across a single kickstart's steps (e.g. the working dir). */
@@ -62,6 +70,12 @@ export interface ExecContext {
   /** Tokens produced by the dashboard stage, consumed by the env stage. */
   deliveryToken?: string;
   previewToken?: string;
+  /** Content type UID created by an API-driven "create content type" step. */
+  contentTypeUid?: string;
+  /** Entry UID created by an API-driven "create entry" step. */
+  entryUid?: string;
+  /** CDN (Content Delivery API) host for the account's region, e.g. "cdn.contentstack.io". */
+  cdnHost?: string;
   /** Live Playwright session, lazily created by the dashboard stage. */
   browser?: unknown;
   page?: unknown;

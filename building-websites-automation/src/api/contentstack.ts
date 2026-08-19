@@ -24,6 +24,22 @@ function host(): string {
   return HOSTS[process.env.CONTENTSTACK_REGION ?? "AWS-NA"] ?? HOSTS["AWS-NA"];
 }
 
+/** Content Delivery API host per region (bare hostname, no protocol — docs write it that way). */
+const CDN_HOSTS: Record<string, string> = {
+  "AWS-NA": "cdn.contentstack.io",
+  "AWS-EU": "eu-cdn.contentstack.com",
+  "AWS-AU": "au-cdn.contentstack.com",
+  "AZURE-NA": "azure-na-cdn.contentstack.com",
+  "AZURE-EU": "azure-eu-cdn.contentstack.com",
+  "GCP-NA": "gcp-na-cdn.contentstack.com",
+  "GCP-EU": "gcp-eu-cdn.contentstack.com",
+};
+
+/** The account's Content Delivery API host, e.g. "cdn.contentstack.io". */
+export function cdnHost(): string {
+  return CDN_HOSTS[process.env.CONTENTSTACK_REGION ?? "AWS-NA"] ?? CDN_HOSTS["AWS-NA"];
+}
+
 let cachedToken: string | null = null;
 
 /** Log in with account credentials and return the session authtoken (cached). */
@@ -99,6 +115,19 @@ export async function uploadAsset(stackApiKey: string, filePath: string, title: 
   const data = await res.json();
   if (!res.ok || !data?.asset?.uid) throw new Error(`asset upload failed: HTTP ${res.status} ${JSON.stringify(data).slice(0, 200)}`);
   return data.asset.uid as string;
+}
+
+/** Create a content type from a schema object; returns the content type uid. */
+export async function createContentType(stackApiKey: string, contentType: Record<string, unknown>): Promise<string> {
+  const authtoken = await getAuthtoken();
+  const res = await fetch(`${host()}/v3/content_types`, {
+    method: "POST",
+    headers: { api_key: stackApiKey, authtoken, "Content-Type": "application/json" },
+    body: JSON.stringify({ content_type: contentType }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data?.content_type?.uid) throw new Error(`content type create failed: HTTP ${res.status} ${JSON.stringify(data).slice(0, 250)}`);
+  return data.content_type.uid as string;
 }
 
 /** Create an entry; returns the entry uid. */

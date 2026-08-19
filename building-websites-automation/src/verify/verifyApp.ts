@@ -73,8 +73,9 @@ export async function verifyApp(cfg: KickstartConfig, ctx: ExecContext): Promise
       });
       // Evidence pass for the doc's nav targets: the doc's Header links point to
       // these routes, but it never creates entries for them (reported gap) —
-      // screenshot each so the report carries visual proof.
-      for (const route of ["/menu", "/about-us", "/contact"]) {
+      // screenshot each so the report carries visual proof. Doc-specific
+      // (defaults to none for docs that don't name any extra routes).
+      for (const route of cfg.navRoutes ?? []) {
         try {
           await page.goto(url + route, { waitUntil: "networkidle", timeout: 20_000 });
           const shotPath = join(process.cwd(), "reports", `${cfg.name}${route.replace(/\//g, "-")}.png`);

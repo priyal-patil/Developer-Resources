@@ -16,6 +16,7 @@ import { runCommand, policyFor } from "./runner.js";
 import { createDeliveryTokenUI, enableLivePreviewUI, getOrgIdFromDashboard, createStackUI, createEnvironmentUI, importContentTypesUI, describeLabelCheck } from "./dashboard.js";
 import { extractUiPathLabels } from "../parse/parseDoc.js";
 import { createDocEntries } from "./entries.js";
+import { createHomepageContentType, createHomepageEntry, writeDocFile } from "./launchDoc.js";
 
 /** Map a CLI region code to the uppercase region code the kickstart repos expect. */
 const REGION_CODE: Record<string, string> = {
@@ -39,6 +40,10 @@ export async function executeStep(
       return writeEnvStep(step, cfg, ctx);
     case "dashboard":
       return runDashboardStep(step, cfg, ctx);
+    case "file": {
+      const r = writeDocFile(step, ctx);
+      return { step, status: r.ok ? "passed" : "failed", detail: r.detail };
+    }
     case "verify":
       return { step, status: "skipped", detail: "handled in verify stage" };
     default:
@@ -63,8 +68,9 @@ async function runDashboardStep(step: DocStep, cfg: KickstartConfig, ctx: ExecCo
     };
   };
 
-  // Create a New Stack — performed in the dashboard UI exactly as the doc instructs.
-  if (/create a new stack/i.test(step.title)) {
+  // Create a (New) Stack — performed in the dashboard UI exactly as the doc instructs.
+  // Both docs' headings differ ("Create a New Stack" vs. "2.1 Create a Stack").
+  if (/create a (new )?stack\b/i.test(step.title)) {
     const r = await createStackUI(ctx, ctx.stackName ?? "BW Getting Started", "Created by building-websites-automation (doc verbatim run)", extractUiPathLabels(step.raw));
     const labelNote = describeLabelCheck(r.labels);
     const gap = Boolean(r.labels?.missing.length);
@@ -75,10 +81,47 @@ async function runDashboardStep(step: DocStep, cfg: KickstartConfig, ctx: ExecCo
     };
   }
 
+  // "2.2 Create Environments" (plural, no token in the same step) — the second
+  // doc's shape: create every environment name the doc's own text lists, via
+  // the same UI flow as the first doc's combined step.
+  if (/create environments?$/i.test(step.title.trim())) {
+    const names = [...new Set([...step.raw.matchAll(/for example,\s*([a-z][\w-]*)/gi)].map((m) => m[1]))];
+    if (!names.length) names.push("staging");
+    const log: string[] = [];
+    let worst: StepStatus = "passed";
+    for (const name of names) {
+      // The doc names no Base URL for this environment (unlike the first doc's
+      // localhost requirement) — a placeholder satisfies the UI's required field.
+      const r = await createEnvironmentUI(ctx, name, "https://example.com", extractUiPathLabels(step.raw));
+      log.push(`[${name}] ${r.detail}`);
+      if (!r.ok) worst = "failed";
+    }
+    // The doc's later steps (token scope, .env) use the first environment named.
+    ctx.environment = names[0];
+    return { step, status: worst, detail: log.join("\n") };
+  }
+
+  // "2.4 Create the Homepage Content Type" — doc's exact schema, via Management API
+  // (this doc has no CLI seed/zip import to lean on, unlike the first doc).
+  if (/create.*content type/i.test(step.title)) {
+    const r = await createHomepageContentType(ctx);
+    return { step, status: r.ok ? "passed" : "failed", detail: r.detail };
+  }
+
+  // "2.5 Create and Publish an Entry" — one representative Homepage entry.
+  if (/create and publish an entry/i.test(step.title)) {
+    const r = await createHomepageEntry(ctx);
+    return { step, status: r.ok ? "passed" : "failed", detail: r.detail };
+  }
+
   // Import Content Types — the doc's exact sequence: download+extract the ZIP it
   // links, then import the four JSONs via the dashboard modal in the doc's order.
   if (/import content types/i.test(step.title)) {
-    const zipUrl = step.raw.match(/\((https:[^)]+\.zip)\)/i)?.[1];
+    // The doc wraps this link in angle brackets when the URL contains a literal
+    // space (markdown's "explicit link" form for URLs with special characters) —
+    // seen live: "(<https://.../Stack Data.zip>)". Handle both forms.
+    const zipUrlRaw = step.raw.match(/\(<?(https:[^()<>]+\.zip)>?\)/i)?.[1];
+    const zipUrl = zipUrlRaw?.replace(/ /g, "%20");
     if (!zipUrl) return { step, status: "ambiguous", detail: "GAP: could not find the .zip download link in the doc's step" };
     const dl = await runCommand(`curl -sL -o "StackData.zip" "${zipUrl}" && unzip -o -q StackData.zip`, ctx.cwd, 180_000);
     if (dl.code !== 0) return { step, status: "failed", detail: `downloading/extracting the doc's zip failed: ${(dl.stderr || dl.stdout).slice(0, 200)}` };
@@ -166,6 +209,9 @@ function writeEnvStep(step: DocStep, cfg: KickstartConfig, ctx: ExecContext): St
     if (/_API_KEY$/.test(key)) return ctx.stackApiKey!;
     if (/_DELIVERY_TOKEN$/.test(key)) return ctx.deliveryToken!;
     if (/_PREVIEW_TOKEN$/.test(key)) return ctx.previewToken ?? "";
+    if (/_CDN_HOST$/.test(key)) return ctx.cdnHost ?? "cdn.contentstack.io";
+    if (/_CONTENT_TYPE_UID$/.test(key)) return ctx.contentTypeUid ?? "homepage";
+    if (/_ENTRY_UID$/.test(key)) return ctx.entryUid ?? "";
     if (/_REGION$/.test(key)) return region;
     if (/_ENVIRONMENT$/.test(key)) return ctx.environment ?? "preview";
     if (/_PREVIEW$/.test(key)) return "true";
@@ -325,6 +371,15 @@ function rewriteCommand(cmd: string, _cfg: KickstartConfig, ctx: ExecContext): s
 
   if (/git clone .*your-username/.test(cmd) && _cfg.repo) {
     return `git clone ${_cfg.repo}`;
+  }
+
+  // The curl-validation step's own placeholders (<STACK_API_KEY>, <DELIVERY_TOKEN>,
+  // <ENTRY_UID>) — substitute the real values captured earlier in this run.
+  if (/<STACK_API_KEY>|<DELIVERY_TOKEN>|<ENTRY_UID>/.test(cmd)) {
+    return cmd
+      .replace(/<STACK_API_KEY>/g, ctx.stackApiKey ?? "")
+      .replace(/<DELIVERY_TOKEN>/g, ctx.deliveryToken ?? "")
+      .replace(/<ENTRY_UID>/g, ctx.entryUid ?? "");
   }
 
   if (/^csdx cm:stacks:seed\b/.test(cmd)) {

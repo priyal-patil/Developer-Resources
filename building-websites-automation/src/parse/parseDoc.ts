@@ -17,17 +17,36 @@
  */
 import type { DocStep, KickstartConfig, StepKind } from "../types.js";
 
-/** Heuristic classifier — decides how a step must be executed. */
-export function classify(title: string, commands: string[]): StepKind {
+/**
+ * Heuristic classifier — decides how a step must be executed.
+ *
+ * `raw` (the step's full original prose+code, before line-by-line command
+ * filtering) matters here: a step can be all curl/TS source with no lines
+ * that look like a *shell* command by themselves (e.g. `API_KEY="..."`, or a
+ * bare `export default nextConfig;`), so `commands` alone under-detects it.
+ */
+export function classify(title: string, commands: string[], raw = ""): StepKind {
   const t = title.toLowerCase();
   const body = commands.join("\n").toLowerCase();
+  const full = `${t} ${body} ${raw.toLowerCase()}`;
 
   if (/prerequisite/.test(t)) return "unknown";
-  if (/settings|dashboard|token|live preview|org admin|toggle|create a new stack|import content types|create entries|deploy.*launch/.test(t)) return "dashboard";
+  if (/settings|dashboard|token|live preview|org admin|toggle|create a new stack|create a stack\b|create environments?\b|import content types|create entries|create.*content type|create and publish an entry|deploy.*launch/.test(t)) return "dashboard";
   if (/\.env|environment variable|configure contentstack/.test(t)) return "env";
   if (/csdx\b/.test(body)) return "cli";
   if (/run your|run the app|npm run dev|npm start|localhost|open http/.test(t + " " + body)) return "verify";
   if (/git clone|npm install|cd |npx /.test(body)) return "shell";
+  // A fenced shell/curl script whose individual lines don't each look like a
+  // standalone shell command (var assignments feeding a multi-line curl call).
+  // Curl must be INSIDE a fence — a fence earlier in the section followed by
+  // unrelated prose that merely mentions "curl" must not match (e.g. this doc's
+  // architecture-diagram section says "A working curl call confirms...").
+  if (hasCurlInFence(raw)) return "shell";
+  // The doc's "open/create <file> and add this code" pattern (fetch helper,
+  // page component, config file) — verbatim file-write, not a command to run.
+  // Checked against `raw`, not just the title/commands: the identifying prose
+  // ("Open next.config.ts... and add") is often outside any fenced command.
+  if (/(?:open|create(?:\s+a)?)\s+[\w./-]+\.(?:ts|tsx|js|jsx|json)\b/i.test(full)) return "file";
   return "unknown";
 }
 
@@ -66,9 +85,22 @@ function extractEnvKeys(raw: string): string[] {
   return [...new Set(keys)].map((k) => `${k}=`);
 }
 
+/** True when a fenced block (not merely surrounding prose) contains a curl call. */
+function hasCurlInFence(raw: string): boolean {
+  for (const m of raw.matchAll(/```[a-z]*\n([\s\S]*?)```/gi)) {
+    if (/\bcurl\b/i.test(m[1])) return true;
+  }
+  return false;
+}
+
 /** True for fenced lines that are actual shell commands (not JS/TS source). */
 function shellLike(line: string): boolean {
-  return /^\s*(git|npm|npx|yarn|pnpm|cd|node|cp|mkdir|touch|mv|rm|export|csdx|nvm|code)\b/.test(line);
+  // `export` only counts as shell-like in its bash form (`export NAME=value`)
+  // — bare `export default ...` / `export function ...` is TS/JS source and
+  // must NOT be swallowed into `commands` (a doc's file-write steps rely on
+  // that prose staying out of the shell-command list).
+  if (/^\s*export\s+[A-Z_][A-Z0-9_]*=/.test(line)) return true;
+  return /^\s*(git|npm|npx|yarn|pnpm|cd|node|cp|mkdir|touch|mv|rm|csdx|nvm|code)\b/.test(line);
 }
 
 /**
@@ -116,8 +148,16 @@ export function splitIntoSteps(body: string): DocStep[] {
 /** Build a DocStep from an accumulated section. */
 function makeStep(index: number, title: string, raw: string[], cmds: string[]): DocStep {
   const rawText = raw.join("\n").trim();
-  const kind = classify(title, cmds);
-  const commands = kind === "env" ? extractEnvKeys(rawText) : cmds.flatMap(normalizeCommandLine);
+  const kind = classify(title, cmds, rawText);
+  let commands = kind === "env" ? extractEnvKeys(rawText) : cmds.flatMap(normalizeCommandLine);
+  // A fenced block that sets shell variables and then uses them (the curl
+  // validation step's `NAME="value" ... curl ...` script) can't be split into
+  // independent commands — each would run in its own subprocess and lose the
+  // others' variables. Keep it as ONE multi-line command instead.
+  if (kind === "shell" && hasCurlInFence(rawText) && !commands.some((c) => /^curl\b/.test(c))) {
+    const fence = [...rawText.matchAll(/```[a-z]*\n([\s\S]*?)```/gi)].map((m) => m[1]).find((f) => /\bcurl\b/i.test(f));
+    if (fence) commands = [fence.trim()];
+  }
   return { index, title, kind, commands, raw: rawText };
 }
 
@@ -133,7 +173,14 @@ function splitNumbered(body: string): DocStep[] {
   };
 
   for (const line of body.split("\n")) {
-    if (line.trim().startsWith("```")) { inFence = !inFence; continue; }
+    if (line.trim().startsWith("```")) {
+      inFence = !inFence;
+      // Keep the fence delimiter itself in `raw` — downstream code (the file-
+      // write step handler, the curl multi-line-script detector) needs to find
+      // ```-fenced code inside a step's raw text, not just its filtered commands.
+      current?.raw.push(line);
+      continue;
+    }
     if (!inFence && /^#{2,6}\s/.test(line)) {
       const numbered = line.match(/^###\s+\d+\.\s+(.*)/);
       const prereq = line.match(/^##\s+Prerequisites\b/i);
@@ -169,7 +216,12 @@ function splitSections(body: string): DocStep[] {
   };
 
   for (const line of body.split("\n")) {
-    if (line.trim().startsWith("```")) { inFence = !inFence; continue; }
+    if (line.trim().startsWith("```")) {
+      inFence = !inFence;
+      // Keep the fence delimiter in `raw` — see the matching comment in splitNumbered.
+      current?.raw.push(line);
+      continue;
+    }
     // Building-Websites docs use both ## sections and ### sub-steps as actionable units.
     if (!inFence && /^#{2,3}\s/.test(line)) {
       flush();
