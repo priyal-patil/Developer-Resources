@@ -18,7 +18,7 @@ import { executeStep } from "./execute/executeStep.js";
 import { verifyApp } from "./verify/verifyApp.js";
 import { checkProjectStructure, checkCodeSnippets } from "./verify/crossCheck.js";
 import { generateReport } from "./report/generateReport.js";
-import { deleteStack } from "./api/contentstack.js";
+import { deleteStack, cdnHost } from "./api/contentstack.js";
 import { closeDashboard } from "./execute/dashboard.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -66,8 +66,10 @@ async function runOne(input: KickstartConfig): Promise<KickstartResult> {
     hasCreds,
     // Unique stack name per run so repeated runs don't collide in a shared org.
     stackName: `${cfg.stackName} ${Date.now().toString(36)}`,
-    // The Contentstack seed publishes to a "preview" environment.
-    environment: "development", // this doc instructs creating a "development" environment
+    // Per-doc default: the first doc instructs a "development" environment;
+    // override via config (see docs.json) for docs that use a different name.
+    environment: cfg.environment ?? "development",
+    cdnHost: cdnHost(),
   };
 
   // The doc for this variant says to reuse the stack created by the base variant.

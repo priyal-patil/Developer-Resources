@@ -3,6 +3,14 @@
     "name": "get-started-building-a-website",
     "doc": "https://www.contentstack.com/docs/headless-cms/get-started-with-building-a-website",
     "repo": "https://github.com/contentstack/contentstack-getting-started-react-app.git",
+    "port": 3000,
+    "navRoutes": ["/menu", "/about-us", "/contact"]
+  },
+  {
+    "name": "build-and-deploy-website-contentstack-launch",
+    "doc": "https://www.contentstack.com/docs/headless-cms/build-and-deploy-website-contentstack-launch",
+    "stackName": "BW Launch Doc",
+    "environment": "staging",
     "port": 3000
   }
 ]
