@@ -139,18 +139,42 @@ jobs:
           GH_TOKEN: ${{ secrets.DASHBOARD_DATA_TOKEN }}
         run: |
           node scripts/publish-to-dashboard.js > /tmp/dashboard-kickstart-automation.json
+
+          REPORTS_DIR=/tmp/reports-kickstart-automation
+          rm -rf "$REPORTS_DIR"
+          if [ -f reports/index.html ]; then
+            mkdir -p "$REPORTS_DIR"
+            cp reports/index.html "$REPORTS_DIR/"
+            cp reports/*.png "$REPORTS_DIR/" 2>/dev/null || true
+          fi
+
           git clone https://x-access-token:${GH_TOKEN}@github.com/priyal-patil/docs-automation-dashboard-data.git /tmp/dashboard-data
           cd /tmp/dashboard-data
-          node scripts/publish.js /tmp/dashboard-kickstart-automation.json
           git config user.name "dashboard-publisher"
           git config user.email "actions@users.noreply.github.com"
-          git add -A
-          git commit -m "Publish developer-resources-docs-automation/kickstart-automation report ($GITHUB_RUN_ID)" || exit 0
-          for i in 1 2 3 4 5; do
-            git push origin main && break
-            git pull --rebase origin main
-            sleep $((RANDOM % 5 + 1))
+
+          pushed=false
+          for i in $(seq 1 10); do
+            if [ -d "$REPORTS_DIR" ] && [ -n "$(ls -A "$REPORTS_DIR" 2>/dev/null)" ]; then
+              node scripts/publish.js "/tmp/dashboard-kickstart-automation.json:$REPORTS_DIR"
+            else
+              node scripts/publish.js /tmp/dashboard-kickstart-automation.json
+            fi
+            git add -A
+            git commit -m "Publish developer-resources-docs-automation/kickstart-automation report ($GITHUB_RUN_ID)" || true
+            if git push origin main; then
+              pushed=true
+              break
+            fi
+            git fetch origin main
+            git reset --hard origin/main
+            sleep $(( (RANDOM % 4000 + 1000) * i / 1000 ))
           done
+
+          if [ "$pushed" != "true" ]; then
+            echo "::error::Failed to push dashboard report for kickstart-automation after 10 attempts"
+            exit 1
+          fi
 
   # building-websites-automation is a standalone sibling project (own deps,
   # .env, config/docs.json) that inherits kickstart-automation's pipeline

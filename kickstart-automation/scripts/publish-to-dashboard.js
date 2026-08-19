@@ -39,6 +39,12 @@ const results = Array.isArray(source.results) ? source.results : [];
 
 const FAILING_STEP_STATUSES = new Set(["failed", "missing"]);
 
+// Kept in sync with the `slug()` helper in src/report/generateReport.ts,
+// which anchors each kickstart's <section id="..."> in reports/index.html.
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+
+const REPORTS_HTML_PATH = `data/${PROJECT}/${SUITE}/reports/index.html`;
+
 const failedItems = [];
 for (const r of results) {
   const steps = Array.isArray(r.steps) ? r.steps : [];
@@ -51,6 +57,7 @@ for (const r of results) {
     name: r.kickstart,
     detail: `Failed step(s): ${stepNames}`,
     docLink: null,
+    reportUrl: `${REPORTS_HTML_PATH}#${slug(r.kickstart)}`,
   });
 }
 

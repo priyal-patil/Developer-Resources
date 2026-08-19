@@ -32,6 +32,9 @@ const COLORS: Record<StepStatus, { bg: string; fg: string; label: string }> = {
 const esc = (s: string): string =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+/** Anchor id for a kickstart's card, so the dashboard can link straight to it. */
+export const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+
 function pill(status: StepStatus): string {
   const c = COLORS[status] ?? COLORS.skipped;
   return `<span class="pill" style="background:${c.bg};color:${c.fg}">${c.label}</span>`;
@@ -58,7 +61,7 @@ function card(r: KickstartResult): string {
     .filter((x) => x.n > 0)
     .map((x) => `${x.n} ${COLORS[x.st].label.toLowerCase()}`)
     .join(" · ");
-  return `<section class="card">
+  return `<section class="card" id="${slug(r.kickstart)}">
     <div class="card-head">
       <h2>${esc(r.kickstart)}</h2>${badge}
     </div>
