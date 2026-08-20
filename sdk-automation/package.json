@@ -12,6 +12,7 @@
     "seed:java-marketplace": "tsx src/setup/seedJavaMarketplaceStack.ts",
     "build:testapp": "esbuild testapp/src/init.ts --bundle --outfile=testapp/dist/bundle.js && cp testapp/index.html testapp/dist/index.html",
     "run-one": "tsx src/index.ts",
+    "sweep": "tsx src/setup/sweep.ts",
     "report": "tsx src/report/generateReport.ts",
     "typecheck": "tsc --noEmit"
   },

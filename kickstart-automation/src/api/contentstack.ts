@@ -26,9 +26,16 @@ function host(): string {
 
 let cachedToken: string | null = null;
 
-/** Log in with account credentials and return the session authtoken (cached). */
-export async function getAuthtoken(): Promise<string> {
-  if (cachedToken) return cachedToken;
+/**
+ * Session authtokens expire well before a full run finishes (a --all run is
+ * 30+ minutes, and the shared nuxt/next stacks are torn down at the very end).
+ * A process-lifetime cache meant those teardown deletes came back 401, the
+ * failure was swallowed by an upstream `.catch(() => false)`, and the stack was
+ * orphaned in the shared QA org. Pass `forceRefresh` anywhere reliability beats
+ * saving one login round-trip — teardown, in particular.
+ */
+export async function getAuthtoken(forceRefresh = false): Promise<string> {
+  if (cachedToken && !forceRefresh) return cachedToken;
   const res = await fetch(`${host()}/v3/user-session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -44,14 +51,62 @@ export async function getAuthtoken(): Promise<string> {
   return cachedToken;
 }
 
-/** Delete a stack by its API key. Returns true on success. */
+/**
+ * Delete a stack, verified. Always forces a fresh authtoken — teardown runs
+ * last, often 30+ minutes into a run, and a stale cached token here means a
+ * silently orphaned stack in the shared QA org. A 200 isn't proof on its own,
+ * so the stack is re-fetched afterward; retries once on any mismatch.
+ */
 export async function deleteStack(stackApiKey: string): Promise<boolean> {
-  const authtoken = await getAuthtoken();
-  const res = await fetch(`${host()}/v3/stacks`, {
-    method: "DELETE",
-    headers: { api_key: stackApiKey, authtoken, "Content-Type": "application/json" },
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const authtoken = await getAuthtoken(true);
+    const res = await fetch(`${host()}/v3/stacks`, {
+      method: "DELETE",
+      headers: { api_key: stackApiKey, authtoken, "Content-Type": "application/json" },
+    });
+    if (!res.ok) continue;
+    const check = await fetch(`${host()}/v3/stacks`, {
+      headers: { api_key: stackApiKey, authtoken, "Content-Type": "application/json" },
+    });
+    if (!check.ok) return true; // 4xx now — confirmed gone
+  }
+  return false;
+}
+
+/** Stacks this harness has created in the QA org, oldest first. */
+export async function listRunStacks(): Promise<{ apiKey: string; name: string; createdAt: string }[]> {
+  const authtoken = await getAuthtoken(true);
+  const res = await fetch(`${host()}/v3/stacks?limit=100`, {
+    headers: {
+      authtoken,
+      organization_uid: process.env.CONTENTSTACK_ORG_ID ?? "",
+      "Content-Type": "application/json",
+    },
   });
-  return res.ok;
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.stacks ?? [])
+    .filter((s: any) => /^CS Kickstart /.test(s.name ?? ""))
+    .map((s: any) => ({ apiKey: s.api_key, name: s.name, createdAt: s.created_at }));
+}
+
+/**
+ * Self-heal: delete stacks left behind by earlier runs whose teardown never
+ * ran (interrupted process, expired token). Anything older than `maxAgeMs`
+ * cannot belong to this run, so it is safe to remove. Called at run start.
+ */
+export async function sweepOrphanStacks(maxAgeMs = 2 * 60 * 60 * 1000): Promise<number> {
+  const cutoff = Date.now() - maxAgeMs;
+  const orphans = (await listRunStacks().catch(() => [])).filter(
+    (s) => Date.parse(s.createdAt) < cutoff
+  );
+  let swept = 0;
+  for (const s of orphans) {
+    const ok = await deleteStack(s.apiKey).catch(() => false);
+    console.log(`  ${ok ? "🧹 swept orphan" : "⚠ could not sweep"} ${s.name} (${s.apiKey})`);
+    if (ok) swept++;
+  }
+  return swept;
 }
 
 /** Create a delivery token (with preview) on a stack; returns both tokens. */
@@ -82,10 +137,16 @@ export async function createDeliveryToken(
   };
 }
 
-// Allow: `tsx src/api/contentstack.ts delete <apiKey> [<apiKey>...]`
-if (process.argv[1]?.endsWith("contentstack.ts") && process.argv[2] === "delete") {
-  const keys = process.argv.slice(3);
-  Promise.all(
-    keys.map(async (k) => console.log(`${(await deleteStack(k)) ? "✓ deleted" : "✗ failed"}  ${k}`))
-  );
+// Allow: `npm run teardown -- <apiKey> [<apiKey>...]`  /  `npm run sweep [-- <maxAgeHours>]`
+if (process.argv[1]?.endsWith("contentstack.ts")) {
+  if (process.argv[2] === "delete") {
+    const keys = process.argv.slice(3);
+    await Promise.all(
+      keys.map(async (k) => console.log(`${(await deleteStack(k)) ? "✓ deleted" : "✗ failed"}  ${k}`))
+    );
+  } else if (process.argv[2] === "sweep") {
+    const hours = Number(process.argv[3] ?? 2);
+    console.log(`Sweeping "CS Kickstart *" stacks older than ${hours}h…`);
+    console.log(`Swept ${await sweepOrphanStacks(hours * 60 * 60 * 1000)} stack(s).`);
+  }
 }

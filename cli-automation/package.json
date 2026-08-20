@@ -8,6 +8,7 @@
     "run-one": "tsx src/index.ts",
     "report": "tsx src/report/generateReport.ts",
     "teardown": "tsx src/setup/teardown.ts",
+    "sweep": "tsx src/setup/teardown.ts sweep",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

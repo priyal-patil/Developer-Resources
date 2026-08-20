@@ -14,7 +14,7 @@ import { seed } from "./setup/seed.js";
 import { prepareImportDoc, deleteSourceStack } from "./setup/prepareImport.js";
 import { prepareCloneAliases, teardownCloneAliases } from "./setup/prepareClone.js";
 import { findLaunchProjectByName, deleteLaunchProject } from "./api/launch.js";
-import { createTaxonomy, createRteContentType, createRteEntry, findStackByName, deleteStack } from "./api/contentstack.js";
+import { createTaxonomy, createRteContentType, createRteEntry, findStackByName, deleteStack, sweepOrphanStacks } from "./api/contentstack.js";
 import { prepareMigrationExamples } from "./setup/prepareMigrationExamples.js";
 import { prepareAppsCli, deleteDevHubApp, findAppByName } from "./setup/prepareAppsCli.js";
 import { prepareTaxonomyMigration } from "./setup/prepareTaxonomyMigration.js";
@@ -105,6 +105,10 @@ for (const p of doc.prerequisites) {
 console.log("\n[3/6] Setup: snapshot csdx config + seed QA stack…");
 const hadConfig = snapshotCsdxConfig(configBackup);
 if (!hadConfig) console.log("  (no existing csdx config to snapshot)");
+// Self-heal: clear out stacks an earlier run failed to tear down (interrupted
+// process, expired token) before adding another to the shared QA org.
+const swept = await sweepOrphanStacks().catch(() => 0);
+if (swept) console.log(`  Swept ${swept} orphaned stack(s) from earlier runs.`);
 let ctx = await seed();
 console.log(`  Stack ready: ${ctx.stackName} (${ctx.stackApiKey})`);
 
@@ -210,6 +214,47 @@ let report: RunReport | null = null;
 let launchProjectName: string | undefined;
 let createdStackNames: string[] = [];
 let createdAppNames: string[] = [];
+
+/**
+ * Best-effort removal of everything this run created. Used by both the crash
+ * path and the signal handlers — a run that is Ctrl-C'd or killed used to skip
+ * teardown entirely and orphan its stack in the shared QA org.
+ */
+async function cleanupAll(): Promise<void> {
+  await teardown(ctx.stackApiKey, ctx.alias, configBackup).catch(() => {});
+  if (sourceStackApiKey) await deleteSourceStack(sourceStackApiKey).catch(() => {});
+  if (migrateTargetStackApiKey) await deleteStack(migrateTargetStackApiKey).catch(() => {});
+  if (docCfg!.needsCustomPluginCleanup) await run("csdx plugins:uninstall myplugin").catch(() => {});
+  if (cloneDestApiKey) await teardownCloneAliases(cloneDestApiKey).catch(() => {});
+  if (launchProjectName) {
+    const project = await findLaunchProjectByName(launchProjectName).catch(() => undefined);
+    if (project) await deleteLaunchProject(project.uid).catch(() => {});
+  }
+  for (const name of createdStackNames) {
+    const found = await findStackByName(name).catch(() => undefined);
+    if (found) await deleteStack(found.apiKey).catch(() => {});
+  }
+  if (appUidForTeardown) {
+    await deleteDevHubApp(process.env.CONTENTSTACK_ORG_ID ?? "", appUidForTeardown).catch(() => {});
+  }
+  for (const name of createdAppNames) {
+    const found = await findAppByName(process.env.CONTENTSTACK_ORG_ID ?? "", name).catch(() => undefined);
+    if (found) await deleteDevHubApp(process.env.CONTENTSTACK_ORG_ID ?? "", found.uid).catch(() => {});
+  }
+}
+
+let interrupting = false;
+for (const sig of ["SIGINT", "SIGTERM"] as const) {
+  process.on(sig, async () => {
+    if (interrupting) process.exit(130); // second Ctrl-C — give up and leave
+    interrupting = true;
+    console.log(`\n${sig} — tearing down this run's stack(s) before exit (Ctrl-C again to skip)…`);
+    await cleanupAll();
+    console.log("  teardown done.");
+    process.exit(130);
+  });
+}
+
 try {
   // ── Execute every block ──────────────────────────────────────────────
   console.log("\n[4/6] Executing every command/example from the doc…");
@@ -335,26 +380,7 @@ try {
 } catch (err) {
   // Never leave a stack behind, even on a crash mid-run.
   console.error(`\nRun crashed: ${(err as Error).message}\nTearing down…`);
-  await teardown(ctx.stackApiKey, ctx.alias, configBackup).catch(() => {});
-  if (sourceStackApiKey) await deleteSourceStack(sourceStackApiKey).catch(() => {});
-  if (migrateTargetStackApiKey) await deleteStack(migrateTargetStackApiKey).catch(() => {});
-  if (docCfg.needsCustomPluginCleanup) await run("csdx plugins:uninstall myplugin").catch(() => {});
-  if (cloneDestApiKey) await teardownCloneAliases(cloneDestApiKey).catch(() => {});
-  if (launchProjectName) {
-    const project = await findLaunchProjectByName(launchProjectName).catch(() => undefined);
-    if (project) await deleteLaunchProject(project.uid).catch(() => {});
-  }
-  for (const name of createdStackNames) {
-    const found = await findStackByName(name).catch(() => undefined);
-    if (found) await deleteStack(found.apiKey).catch(() => {});
-  }
-  if (appUidForTeardown) {
-    await deleteDevHubApp(process.env.CONTENTSTACK_ORG_ID ?? "", appUidForTeardown).catch(() => {});
-  }
-  for (const name of createdAppNames) {
-    const found = await findAppByName(process.env.CONTENTSTACK_ORG_ID ?? "", name).catch(() => undefined);
-    if (found) await deleteDevHubApp(process.env.CONTENTSTACK_ORG_ID ?? "", found.uid).catch(() => {});
-  }
+  await cleanupAll();
   throw err;
 }
 

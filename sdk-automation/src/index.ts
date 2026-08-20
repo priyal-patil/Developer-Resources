@@ -39,6 +39,7 @@ import { ensureDotnetManagementProject } from "./setup/dotnetManagementHarness.j
 import { hasDisposableSupport, prepareDisposable, translateDisposableOverrides, hasTranslatableDisposableSupport } from "./setup/disposableResource.js";
 import { hasMarketplaceDisposableSupport, prepareMarketplaceDisposable, prepareAuthorizationDisposable } from "./setup/marketplaceDisposable.js";
 import { setupAppSdk, teardownAppSdk } from "./setup/seedAppSdkStack.js";
+import { sweepOrphanAppSdkStack } from "./setup/contentstack.js";
 import { loginAppSdkSession, gotoEntryEditPage, gotoDashboard, findLocationFrame } from "./execute/appSdkSession.js";
 import type { Frame } from "playwright";
 import { signatureAudit } from "./verify/signatureAudit.js";
@@ -104,6 +105,33 @@ function isMutatingMethod(method: string): boolean {
  * reliably discovered in this pass - deferred rather than guessed).
  */
 const APP_SDK_IN_SCOPE_SECTIONS = new Set(["ContentstackAppSDK", "CustomField", "SidebarWidget", "FieldModifierLocation", "DashboardWidget", "App SDK Core Objects"]);
+
+/**
+ * Cleanup for this run's disposable resources, set once they exist. Held at
+ * module scope so the signal handlers and the top-level catch can both reach
+ * it - the App SDK doc's app/stack teardown used to sit in plain sequential
+ * code, so a crash or a Ctrl-C between setup and that line orphaned a stack
+ * (and burned an org-wide app quota slot) with nothing to clean it up.
+ * Idempotent: cleared as soon as it has run.
+ */
+let pendingCleanup: (() => Promise<void>) | null = null;
+
+async function runPendingCleanup(): Promise<void> {
+  const cleanup = pendingCleanup;
+  pendingCleanup = null;
+  if (cleanup) await cleanup().catch((e) => console.error(`  WARNING: cleanup failed - ${(e as Error).message}`));
+}
+
+let interrupting = false;
+for (const sig of ["SIGINT", "SIGTERM"] as const) {
+  process.on(sig, async () => {
+    if (interrupting) process.exit(130); // second Ctrl-C - give up and leave
+    interrupting = true;
+    if (pendingCleanup) console.log(`\n${sig} - cleaning up this run's app + stack before exit (Ctrl-C again to skip)...`);
+    await runPendingCleanup();
+    process.exit(130);
+  });
+}
 
 async function main() {
   const docName = process.argv[2];
@@ -206,7 +234,20 @@ async function main() {
   let customFieldFrame: Frame | undefined;
   let dashboardFrame: Frame | undefined;
   if (config.sdkKind === "app") {
+    // Clear any stack a previous interrupted run left behind before creating
+    // this run's own - setupAppSdk() find-or-creates by name, so a leftover
+    // would otherwise be silently adopted along with its stale state.
+    await sweepOrphanAppSdkStack().catch(() => false);
     appSdk = await setupAppSdk();
+    // Registered the moment the app/stack exist, so an interrupt from here on
+    // still removes them.
+    pendingCleanup = async () => {
+      await appSession?.close().catch(() => {});
+      if (appSdk) {
+        await teardownAppSdk(appSdk);
+        await appSdk.tunnel.close().catch(() => {});
+      }
+    };
     appSession = await loginAppSdkSession();
     // Two separate tabs, not one page navigated twice - navigating a page
     // away detaches every iframe reference taken on it (confirmed live:
@@ -641,13 +682,8 @@ async function main() {
   // doc's read-only stack is - matches the explicit cleanup done manually
   // for the Management/Marketplace docs, just automated here since the app
   // must be freshly reinstalled every run anyway (see appSdkManifest.ts).
-  if (config.sdkKind === "app") {
-    await appSession?.close();
-    if (appSdk) {
-      await teardownAppSdk(appSdk);
-      await appSdk.tunnel.close();
-    }
-  }
+  // No-op for every other sdkKind - only the "app" branch registers cleanup.
+  await runPendingCleanup();
 
   console.log("[3/4] Verifying (signature audit, output check, lint) ...");
   // signatureAudit reads an installed npm package's .d.ts files - not
@@ -679,7 +715,9 @@ async function main() {
   console.log(`See reports/index.html`);
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error(`FAILED: ${e.message}`);
+  // Never leave the disposable app/stack behind on a crash mid-run.
+  await runPendingCleanup();
   process.exit(1);
 });

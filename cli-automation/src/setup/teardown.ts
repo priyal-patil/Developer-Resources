@@ -3,7 +3,7 @@
  * alias, and restore the csdx global config snapshot taken before the run.
  */
 import "dotenv/config";
-import { deleteStack } from "../api/contentstack.js";
+import { deleteStack, sweepOrphanStacks } from "../api/contentstack.js";
 import { removeTokenAlias, restoreCsdxConfig } from "./csdx.js";
 
 export interface TeardownResult {
@@ -26,7 +26,14 @@ export async function teardown(
 }
 
 // Manual cleanup: `npm run teardown -- <stackApiKey>`
+// Sweep leftovers from earlier runs: `npm run sweep [-- <maxAgeHours>]`
 if (process.argv[1]?.endsWith("teardown.ts") && process.argv[2]) {
-  const res = await teardown(process.argv[2], "production", "workdir/.csdx-config-backup");
-  console.log(res);
+  if (process.argv[2] === "sweep") {
+    const hours = Number(process.argv[3] ?? 2);
+    console.log(`Sweeping "cli-automation-*" stacks older than ${hours}h…`);
+    console.log(`Swept ${await sweepOrphanStacks(hours * 60 * 60 * 1000)} stack(s).`);
+  } else {
+    const res = await teardown(process.argv[2], "production", "workdir/.csdx-config-backup");
+    console.log(res);
+  }
 }
