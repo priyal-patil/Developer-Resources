@@ -15,6 +15,7 @@ import type { DocStep, ExecContext, KickstartConfig, StepResult, StepStatus } fr
 import { runCommand, policyFor } from "./runner.js";
 import { createDeliveryTokenUI, enableLivePreviewUI, getOrgIdFromDashboard, describeLabelCheck } from "./dashboard.js";
 import { extractUiPathLabels } from "../parse/parseDoc.js";
+import { findStackApiKeyByName } from "../api/contentstack.js";
 
 /** Map a CLI region code to the uppercase region code the kickstart repos expect. */
 const REGION_CODE: Record<string, string> = {
@@ -221,7 +222,7 @@ async function runShellStep(step: DocStep, cfg: KickstartConfig, ctx: ExecContex
       worst = downgrade(worst, "failed");
     } else {
       log.push(`✓ ${cmd}`);
-      captureSeedOutput(cmd, `${res.stdout}\n${res.stderr}`, ctx, log);
+      await captureSeedOutput(cmd, `${res.stdout}\n${res.stderr}`, ctx, log);
     }
   }
 
@@ -260,12 +261,29 @@ function rewriteCommand(cmd: string, _cfg: KickstartConfig, ctx: ExecContext): s
 }
 
 /** Pull the new stack's API key out of seed output so the env stage can use it. */
-function captureSeedOutput(cmd: string, stdout: string, ctx: ExecContext, log: string[]): void {
+async function captureSeedOutput(
+  cmd: string,
+  stdout: string,
+  ctx: ExecContext,
+  log: string[]
+): Promise<void> {
   if (!/^csdx cm:stacks:seed\b/.test(cmd)) return;
   const m = stdout.match(/api[_ ]?key["'\s:=]+([a-zA-Z0-9]{6,})/i);
   if (m) {
     ctx.stackApiKey = m[1];
     log.push(`   ↳ seeded stack api key: ${m[1]}`);
+    return;
+  }
+  // The seed exited 0 but its output didn't carry an api key we recognize.
+  // Ask the Management API for the stack we just named rather than failing
+  // every downstream step — the CLI's output format is not our contract.
+  if (!ctx.stackName || !ctx.hasCreds) return;
+  const apiKey = await findStackApiKeyByName(ctx.stackName).catch(() => undefined);
+  if (apiKey) {
+    ctx.stackApiKey = apiKey;
+    log.push(`   ↳ seed output had no api key — resolved "${ctx.stackName}" via Management API: ${apiKey}`);
+  } else {
+    log.push(`   ↳ seed output had no api key, and no stack named "${ctx.stackName}" was found via the Management API`);
   }
 }
 

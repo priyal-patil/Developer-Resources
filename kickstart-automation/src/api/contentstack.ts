@@ -91,6 +91,18 @@ export async function listRunStacks(): Promise<{ apiKey: string; name: string; c
 }
 
 /**
+ * Resolve a stack's API key from its exact name. The seed step normally scrapes
+ * the api key out of `csdx cm:stacks:seed` stdout, but that output format is
+ * the CLI's business and has changed before — when the scrape misses, every
+ * later step (delivery token, .env, running the app) fails with "no seeded
+ * stack api key" even though the stack was created fine. This is the fallback.
+ */
+export async function findStackApiKeyByName(name: string): Promise<string | undefined> {
+  const stacks = await listRunStacks().catch(() => []);
+  return stacks.find((s) => s.name === name)?.apiKey;
+}
+
+/**
  * Self-heal: delete stacks left behind by earlier runs whose teardown never
  * ran (interrupted process, expired token). Anything older than `maxAgeMs`
  * cannot belong to this run, so it is safe to remove. Called at run start.

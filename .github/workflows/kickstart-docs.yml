@@ -53,6 +53,10 @@ jobs:
           CONTENTSTACK_PASSWORD: ${{ secrets.CONTENTSTACK_PASSWORD }}
           CONTENTSTACK_REGION: ${{ secrets.CONTENTSTACK_REGION }}
           CONTENTSTACK_ORG_NAME: ${{ secrets.CONTENTSTACK_ORG_NAME || 'Contentstack QA' }}
+          # src/api/contentstack.ts sends this as organization_uid; without it
+          # the Management API fallbacks (stack lookup, orphan sweep) query the
+          # whole account with an empty org and come back useless.
+          CONTENTSTACK_ORG_ID: ${{ secrets.CONTENTSTACK_ORG_ID }}
         run: |
           set -e
           KICKSTARTS="${{ github.event.inputs.kickstarts || 'all' }}"
@@ -138,14 +142,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.DASHBOARD_DATA_TOKEN }}
         run: |
-          node scripts/publish-to-dashboard.js > /tmp/dashboard-kickstart-automation.json
-
-          REPORTS_DIR=/tmp/reports-kickstart-automation
-          rm -rf "$REPORTS_DIR"
-          if [ -f reports/index.html ]; then
-            mkdir -p "$REPORTS_DIR"
-            cp reports/index.html "$REPORTS_DIR/"
-            cp reports/*.png "$REPORTS_DIR/" 2>/dev/null || true
+          # The adapter emits one report per kickstart guide (suite
+          # "kickstart-<name>") into a staging dir and prints the
+          # "<report.json>:<reports-dir>" argument for each, one per line.
+          STAGE=/tmp/dashboard-kickstart-stage
+          node scripts/publish-to-dashboard.js --stage-dir "$STAGE" > /tmp/kickstart-publish-args.txt
+          if [ ! -s /tmp/kickstart-publish-args.txt ]; then
+            echo "::error::kickstart adapter staged no reports"
+            exit 1
           fi
 
           git clone https://x-access-token:${GH_TOKEN}@github.com/priyal-patil/docs-automation-dashboard-data.git /tmp/dashboard-data
@@ -155,13 +159,10 @@ jobs:
 
           pushed=false
           for i in $(seq 1 10); do
-            if [ -d "$REPORTS_DIR" ] && [ -n "$(ls -A "$REPORTS_DIR" 2>/dev/null)" ]; then
-              node scripts/publish.js "/tmp/dashboard-kickstart-automation.json:$REPORTS_DIR"
-            else
-              node scripts/publish.js /tmp/dashboard-kickstart-automation.json
-            fi
+            # Unquoted on purpose: one argument per line, no spaces in paths.
+            node scripts/publish.js $(cat /tmp/kickstart-publish-args.txt)
             git add -A
-            git commit -m "Publish developer-resources-docs-automation/kickstart-automation report ($GITHUB_RUN_ID)" || true
+            git commit -m "Publish developer-resources-docs-automation kickstart-* reports ($GITHUB_RUN_ID)" || true
             if git push origin main; then
               pushed=true
               break

@@ -16,9 +16,19 @@ export function generateReport(results: KickstartResult[], outPath: string): voi
   };
   writeFileSync(outPath, JSON.stringify(summary, null, 2));
 
-  const htmlPath = join(dirname(outPath), "index.html");
+  const outDir = dirname(outPath);
+  const htmlPath = join(outDir, "index.html");
   writeFileSync(htmlPath, renderHtml(results));
-  console.log(`Report: ${outPath}\n        ${htmlPath}`);
+
+  // Also emit one HTML file per kickstart. The dashboard publishes each
+  // kickstart as its own suite, and a suite's reports/ folder only carries
+  // that guide's screenshots — a copy of the combined index.html there would
+  // have broken <img> refs for every OTHER guide's evidence.
+  for (const r of results) {
+    writeFileSync(join(outDir, `${slug(r.kickstart)}.html`), renderHtml([r]));
+  }
+
+  console.log(`Report: ${outPath}\n        ${htmlPath}\n        + ${results.length} per-kickstart HTML file(s)`);
 }
 
 const COLORS: Record<StepStatus, { bg: string; fg: string; label: string }> = {
