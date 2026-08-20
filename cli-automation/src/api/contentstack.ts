@@ -96,6 +96,30 @@ export async function deleteStack(apiKey: string): Promise<boolean> {
   return false;
 }
 
+/**
+ * Self-heal: delete stacks left behind by earlier runs whose teardown never
+ * ran. Only touches this harness's own naming (`cli-automation-*`, plus the
+ * auxiliary stacks the import/clone/migrate prep steps create), and only those
+ * older than `maxAgeMs` — anything newer could belong to a run in flight.
+ */
+export async function sweepOrphanStacks(maxAgeMs = 2 * 60 * 60 * 1000): Promise<number> {
+  const { status, data } = await api("GET", "/stacks?limit=100", undefined, {
+    organization_uid: process.env.CONTENTSTACK_ORG_ID ?? "",
+  }, true);
+  if (status !== 200) return 0;
+  const cutoff = Date.now() - maxAgeMs;
+  const orphans = (data.stacks ?? []).filter(
+    (s: any) => /^cli-automation[-_]/.test(s.name ?? "") && Date.parse(s.created_at) < cutoff
+  );
+  let swept = 0;
+  for (const s of orphans) {
+    const ok = await deleteStack(s.api_key).catch(() => false);
+    console.log(`  ${ok ? "🧹 swept orphan" : "⚠ could not sweep"} ${s.name} (${s.api_key})`);
+    if (ok) swept++;
+  }
+  return swept;
+}
+
 /** Create a taxonomy + one term for real, for docs (export-content-to-csv) that need a genuine --taxonomy-uid to test against. */
 export async function createTaxonomy(apiKey: string, uid: string, name: string): Promise<{ taxonomyUid: string; termUid: string }> {
   const { status, data } = await api("POST", "/taxonomies", { taxonomy: { uid, name, description: "cli-automation test taxonomy" } }, { api_key: apiKey });

@@ -18,7 +18,7 @@ import { executeStep } from "./execute/executeStep.js";
 import { verifyApp } from "./verify/verifyApp.js";
 import { checkProjectStructure, checkCodeSnippets } from "./verify/crossCheck.js";
 import { generateReport } from "./report/generateReport.js";
-import { deleteStack } from "./api/contentstack.js";
+import { deleteStack, sweepOrphanStacks } from "./api/contentstack.js";
 import { closeDashboard } from "./execute/dashboard.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -48,6 +48,35 @@ interface SharedStack {
 }
 const sharedStacks = new Map<string, SharedStack>();
 
+/**
+ * Every context whose run is still in flight. `ctx.stackApiKey` is filled in
+ * mid-run by the seed step, so the signal handler below reads the live objects
+ * rather than a snapshot.
+ */
+const liveContexts = new Set<ExecContext>();
+
+/**
+ * Teardown on Ctrl-C / kill. Without this, an interrupted run skips the
+ * `finally` blocks entirely and orphans every stack it had seeded — the main
+ * way stacks piled up in the shared QA org.
+ */
+let interrupting = false;
+for (const sig of ["SIGINT", "SIGTERM"] as const) {
+  process.on(sig, async () => {
+    if (interrupting) process.exit(130); // second Ctrl-C — give up and leave
+    interrupting = true;
+    const keys = new Set<string>();
+    for (const c of liveContexts) if (c.stackApiKey && !c.reused) keys.add(c.stackApiKey);
+    for (const s of sharedStacks.values()) if (s.stackApiKey) keys.add(s.stackApiKey);
+    console.log(`\n${sig} — tearing down ${keys.size} stack(s) before exit (Ctrl-C again to skip)…`);
+    for (const key of keys) {
+      const ok = await deleteStack(key).catch(() => false);
+      console.log(`  ${ok ? "🧹 torn down" : "⚠ teardown failed for"} stack ${key}`);
+    }
+    process.exit(130);
+  });
+}
+
 async function runOne(input: KickstartConfig): Promise<KickstartResult> {
   console.log(`\n=== ${input.name} (${input.variant ?? "default"}) ===\n${input.doc}`);
 
@@ -69,6 +98,7 @@ async function runOne(input: KickstartConfig): Promise<KickstartResult> {
     // The Contentstack seed publishes to a "preview" environment.
     environment: "preview",
   };
+  liveContexts.add(ctx);
 
   // The doc for this variant says to reuse the stack created by the base variant.
   if (cfg.reuseStackFrom) {
@@ -109,6 +139,7 @@ async function runOne(input: KickstartConfig): Promise<KickstartResult> {
     results.push(...(await verifyApp(cfg, ctx)));
   } finally {
     await closeDashboard(ctx);
+    liveContexts.delete(ctx);
     const hasDependents = kickstarts.some((k) => k.reuseStackFrom === cfg.name);
     if (ctx.stackApiKey && hasDependents && !ctx.reused) {
       // Defer teardown: later variants reuse this stack (per their docs).
@@ -150,6 +181,13 @@ async function main() {
       ? kickstarts.filter((k) => named.includes(k.name))
       : [kickstarts[0]];
 
+  // Self-heal: clear out stacks any earlier run failed to tear down before
+  // adding more to the shared org.
+  if (hasCreds) {
+    const swept = await sweepOrphanStacks().catch(() => 0);
+    if (swept) console.log(`Swept ${swept} orphaned stack(s) from earlier runs.\n`);
+  }
+
   const results: KickstartResult[] = [];
   for (const cfg of targets) {
     try {
@@ -174,10 +212,21 @@ async function main() {
     /* no previous report — write this run's results as-is */
   }
   // Tear down stacks that were kept alive for dependent variants.
+  const leaked: string[] = [];
   for (const [name, s] of sharedStacks) {
     if (!s.stackApiKey) continue;
     const ok = await deleteStack(s.stackApiKey).catch(() => false);
     console.log(`${ok ? "🧹 torn down" : "⚠ teardown failed for"} shared stack ${s.stackApiKey} (${name})`);
+    if (!ok) leaked.push(`${s.stackApiKey} (${name})`);
+  }
+  // Surface leaks loudly — these used to scroll past unnoticed at the end of a
+  // long run, which is how the QA org filled up with orphaned stacks.
+  if (leaked.length) {
+    console.error(
+      `\n⚠ ${leaked.length} stack(s) NOT deleted — remove them manually:\n` +
+        leaked.map((l) => `    ${l}`).join("\n") +
+        `\n  npm run teardown -- <apiKey>\n`
+    );
   }
 
   generateReport(merged, reportPath);

@@ -8,6 +8,8 @@
     "run-one": "tsx src/index.ts",
     "run-all": "tsx src/index.ts --all",
     "report": "tsx src/report/generateReport.ts",
+    "teardown": "tsx src/api/contentstack.ts delete",
+    "sweep": "tsx src/api/contentstack.ts sweep",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

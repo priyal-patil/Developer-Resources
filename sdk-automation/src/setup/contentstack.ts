@@ -91,6 +91,35 @@ export async function deleteStack(apiKey: string): Promise<boolean> {
   return false;
 }
 
+/**
+ * Self-heal for the ONE stack in this project with a per-run lifecycle:
+ * "SDK Automation - App SDK" is created at the start of every App SDK run and
+ * deleted at the end (apps are an org-wide quota-limited resource), so one
+ * still present at run start is a leftover from a run that was interrupted
+ * before its cleanup could fire.
+ *
+ * Deliberately scoped to that one name. The Delivery, Management and
+ * Marketplace stacks are PERSISTENT fixtures reused across runs, with their
+ * keys written back into .env - sweeping those would break the next run.
+ *
+ * The age floor guards against deleting a stack a concurrent run (or a manual
+ * `npm run seed:app`, which holds its tunnel open until Ctrl+C) is using.
+ */
+export async function sweepOrphanAppSdkStack(
+  name = "SDK Automation - App SDK",
+  maxAgeMs = 2 * 60 * 60 * 1000
+): Promise<boolean> {
+  const { status, data } = await api("GET", `/stacks?query=${encodeURIComponent(JSON.stringify({ name }))}`, undefined, {
+    organization_uid: process.env.CONTENTSTACK_ORG_ID ?? "",
+  }, true);
+  if (status !== 200) return false;
+  const match = (data.stacks ?? []).find((s: any) => s.name === name);
+  if (!match || Date.parse(match.created_at) > Date.now() - maxAgeMs) return false;
+  const ok = await deleteStack(match.api_key).catch(() => false);
+  console.log(`  ${ok ? "swept orphan" : "WARNING: could not sweep"} stack "${name}" (${match.api_key}) left by an earlier run`);
+  return ok;
+}
+
 export async function createContentType(apiKey: string, uid: string, title: string): Promise<void> {
   const { status, data } = await api(
     "POST",
