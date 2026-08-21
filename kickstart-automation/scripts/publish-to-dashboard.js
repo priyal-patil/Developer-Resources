@@ -183,6 +183,9 @@ for (const r of results) {
     projectLabel: PROJECT_LABEL,
     suite,
     suiteLabel: suiteLabelFor(name, cfg),
+    // Folder this doc sits in on the dashboard (see SCHEMA.md "group").
+    group: "kickstart-guides",
+    groupLabel: "Kickstart Guides",
     runId,
     runUrl: runId ? `https://github.com/${REPO}/actions/runs/${runId}` : null,
     artifactsUrl: runId ? `https://github.com/${REPO}/actions/runs/${runId}#artifacts` : null,

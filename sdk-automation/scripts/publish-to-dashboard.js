@@ -83,6 +83,9 @@ const normalized = {
   projectLabel: PROJECT_LABEL,
   suite: docName,
   suiteLabel: docName,
+  // Folder this doc sits in on the dashboard (see SCHEMA.md "group").
+  group: "sdk-docs",
+  groupLabel: "SDK Docs",
   runId,
   runUrl: process.env.GITHUB_RUN_ID
     ? `https://github.com/${REPO}/actions/runs/${process.env.GITHUB_RUN_ID}`

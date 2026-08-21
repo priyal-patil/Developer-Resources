@@ -73,6 +73,9 @@ const normalized = {
   projectLabel: PROJECT_LABEL,
   suite: SUITE,
   suiteLabel: SUITE_LABEL,
+  // Folder this doc sits in on the dashboard (see SCHEMA.md "group").
+  group: "building-websites",
+  groupLabel: "Building Websites",
   runId,
   runUrl: runId ? `https://github.com/${REPO}/actions/runs/${runId}` : null,
   artifactsUrl: runId ? `https://github.com/${REPO}/actions/runs/${runId}#artifacts` : null,

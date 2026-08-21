@@ -94,6 +94,9 @@ const normalized = {
   projectLabel: PROJECT_LABEL,
   suite: docName,
   suiteLabel: docTitle,
+  // Folder this doc sits in on the dashboard (see SCHEMA.md "group").
+  group: "cli-docs",
+  groupLabel: "CLI Docs",
   runId,
   runUrl: runId ? `https://github.com/${REPO}/actions/runs/${runId}` : null,
   artifactsUrl: runId ? `https://github.com/${REPO}/actions/runs/${runId}#artifacts` : null,
